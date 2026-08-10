@@ -1,0 +1,12 @@
+{
+  "name": "keuangan-masjid-al-ghufron",
+  "version": "1.0.0",
+  "description": "Aplikasi Keuangan Masjid Al-Ghufron",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.17.4"
+  }
+}

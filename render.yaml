@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: keuangan-masjid-al-ghufron
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false

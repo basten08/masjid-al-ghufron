@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Transparansi Keuangan - Masjid Al-Ghufron PNIC Blok G (RW 035)</title>
+<link rel="icon" href="/favicon.jpg" type="image/jpeg">
+<link rel="stylesheet" href="/style.css">
+<style>
+  body { background: var(--bg); }
+  .pub-topbar {
+    background: linear-gradient(135deg, var(--green-900), var(--green-700));
+    color: white; padding: 22px 20px;
+  }
+  .pub-topbar .brand { max-width: 720px; margin: 0 auto; }
+  .pub-wrap { max-width: 720px; margin: 0 auto; padding: 20px 20px 48px; }
+  .pub-updated { text-align: center; font-size: 12px; color: var(--muted); margin: 14px 0 24px; }
+  .pub-hero { text-align: center; padding: 28px 20px; }
+  .pub-hero .label { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  .pub-hero .value { font-size: 34px; font-weight: 700; color: var(--green-900); }
+  .trend-table th, .trend-table td { text-align: right; }
+  .trend-table th:first-child, .trend-table td:first-child { text-align: left; }
+  .footer-note { text-align: center; font-size: 12px; color: var(--muted); margin-top: 24px; }
+  .loading { text-align: center; padding: 60px 20px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="pub-topbar">
+  <div class="brand">
+    <span class="brand-icon">☾</span>
+    <div>
+      <h1 id="pub-title">Masjid Al-Ghufron PNIC Blok G (RW 035)</h1>
+      <p>Transparansi Keuangan Masjid</p>
+    </div>
+  </div>
+</div>
+
+<div class="pub-wrap" id="pub-content">
+  <div class="loading">Memuat data...</div>
+</div>
+
+<script>
+const fmtMoney = (n) => 'Rp ' + new Intl.NumberFormat('id-ID').format(Math.round(n || 0));
+
+function fmtUpdated(iso) {
+  const d = new Date(iso);
+  return d.toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' });
+}
+
+async function load() {
+  const content = document.getElementById('pub-content');
+  try {
+    const res = await fetch('/api/public/summary');
+    if (!res.ok) throw new Error('Gagal memuat data');
+    const d = await res.json();
+
+    const accountCards = d.accounts.map((a) => `
+      <div class="card stat-card">
+        <div class="label">${a.name} (${a.type === 'tunai' ? 'Tunai' : 'Bank'})</div>
+        <div class="value" style="font-size:18px">${fmtMoney(a.saldo)}</div>
+      </div>`).join('');
+
+    const maxAbs = Math.max(1, ...d.trend.map((t) => Math.max(t.masuk, t.keluar)));
+    const trendRows = d.trend.map((t) => `
+      <tr>
+        <td>${t.label}</td>
+        <td class="amount in">${fmtMoney(t.masuk)}</td>
+        <td class="amount out">${fmtMoney(t.keluar)}</td>
+        <td>${fmtMoney(t.saldoAkhir)}</td>
+      </tr>`).join('');
+
+    content.innerHTML = `
+      <div class="card pub-hero">
+        <div class="label">Total Saldo Kas Masjid Saat Ini</div>
+        <div class="value">${fmtMoney(d.totalSaldo)}</div>
+      </div>
+
+      <div class="grid grid-4" style="margin-bottom:20px">
+        ${accountCards}
+      </div>
+
+      <div class="section">
+        <h2 class="section-title">Ringkasan Bulan Ini (${d.monthLabel})</h2>
+        <div class="grid grid-4">
+          <div class="card stat-card">
+            <div class="label">Pemasukan</div>
+            <div class="value" style="font-size:19px">${fmtMoney(d.monthMasuk)}</div>
+          </div>
+          <div class="card stat-card">
+            <div class="label">Pengeluaran</div>
+            <div class="value negative" style="font-size:19px">${fmtMoney(d.monthKeluar)}</div>
+          </div>
+          <div class="card stat-card">
+            <div class="label">Selisih</div>
+            <div class="value ${d.monthMasuk - d.monthKeluar < 0 ? 'negative' : ''}" style="font-size:19px">${fmtMoney(d.monthMasuk - d.monthKeluar)}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card section">
+        <h2 class="section-title">Tren 6 Bulan Terakhir</h2>
+        <div class="table-wrap">
+          <table class="trend-table">
+            <thead><tr><th>Bulan</th><th>Pemasukan</th><th>Pengeluaran</th><th>Saldo Akhir</th></tr></thead>
+            <tbody>${trendRows}</tbody>
+          </table>
+        </div>
+      </div>
+
+      <p class="footer-note">
+        Data diperbarui otomatis · Terakhir diperbarui: ${fmtUpdated(d.updatedAt)}<br>
+        Laporan ini bersifat ringkasan untuk transparansi jamaah. Untuk rincian transaksi, silakan hubungi bendahara masjid.
+      </p>
+    `;
+  } catch (err) {
+    content.innerHTML = `<div class="loading">Gagal memuat data: ${err.message}</div>`;
+  }
+}
+
+load();
+setInterval(load, 5 * 60 * 1000);
+</script>
+</body>
+</html>
