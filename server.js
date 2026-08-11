@@ -591,6 +591,28 @@ function nextMonthFirstDay(ym) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
 }
 
+async function buildTrend(monthKeys, baseline, group) {
+  const filter = group ? 'AND fund_source = ?' : '';
+  const groupParam = group ? [group] : [];
+  const trend = [];
+  for (const { ym, year, monthNum } of monthKeys) {
+    const row = await db.get(`
+      SELECT
+        SUM(CASE WHEN type = 'pemasukan' THEN amount ELSE 0 END) AS masuk,
+        SUM(CASE WHEN type = 'pengeluaran' THEN amount ELSE 0 END) AS keluar
+      FROM transactions WHERE substr(date, 1, 7) = ? ${filter}
+    `, [ym, ...groupParam]);
+    const masuk = row.masuk || 0;
+    const keluar = row.keluar || 0;
+    const cumulative = (await db.get(`
+      SELECT COALESCE(SUM(CASE WHEN type = 'pemasukan' THEN amount ELSE -amount END), 0) AS c
+      FROM transactions WHERE date < ? ${filter}
+    `, [nextMonthFirstDay(ym), ...groupParam])).c;
+    trend.push({ label: `${MONTH_LABELS[monthNum - 1]} ${year}`, masuk, keluar, saldoAkhir: baseline + cumulative });
+  }
+  return trend;
+}
+
 async function buildPublicSummary() {
   const rawAccounts = await computeAccountBalances();
   const accounts = rawAccounts.map((a) => ({ name: a.name, type: a.type, saldo: a.saldo }));
@@ -604,24 +626,13 @@ async function buildPublicSummary() {
     monthKeys.push({ ym: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, year: d.getFullYear(), monthNum: d.getMonth() + 1 });
   }
 
-  const trend = [];
-  for (const { ym, year, monthNum } of monthKeys) {
-    const row = await db.get(`
-      SELECT
-        SUM(CASE WHEN type = 'pemasukan' THEN amount ELSE 0 END) AS masuk,
-        SUM(CASE WHEN type = 'pengeluaran' THEN amount ELSE 0 END) AS keluar
-      FROM transactions WHERE substr(date, 1, 7) = ?
-    `, [ym]);
-    const masuk = row.masuk || 0;
-    const keluar = row.keluar || 0;
-    const cumulative = (await db.get(`
-      SELECT COALESCE(SUM(CASE WHEN type = 'pemasukan' THEN amount ELSE -amount END), 0) AS c
-      FROM transactions WHERE date < ?
-    `, [nextMonthFirstDay(ym)])).c;
-    trend.push({ label: `${MONTH_LABELS[monthNum - 1]} ${year}`, masuk, keluar, saldoAkhir: baseline + cumulative });
-  }
+  const trend = await buildTrend(monthKeys, baseline, null);
+  const trendOperasional = await buildTrend(monthKeys, 0, 'operasional');
+  const trendPembangunan = await buildTrend(monthKeys, 0, 'pembangunan');
 
   const current = trend[trend.length - 1];
+  const currentOperasional = trendOperasional[trendOperasional.length - 1];
+  const currentPembangunan = trendPembangunan[trendPembangunan.length - 1];
 
   return {
     totalSaldo,
@@ -629,7 +640,19 @@ async function buildPublicSummary() {
     monthLabel: current.label,
     monthMasuk: current.masuk,
     monthKeluar: current.keluar,
+    groupSaldo: {
+      operasional: currentOperasional.saldoAkhir,
+      pembangunan: currentPembangunan.saldoAkhir,
+    },
+    monthByGroup: {
+      operasional: { masuk: currentOperasional.masuk, keluar: currentOperasional.keluar },
+      pembangunan: { masuk: currentPembangunan.masuk, keluar: currentPembangunan.keluar },
+    },
     trend,
+    trendByGroup: {
+      operasional: trendOperasional,
+      pembangunan: trendPembangunan,
+    },
     updatedAt: now.toISOString(),
   };
 }

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Transparansi Keuangan - Masjid Al-Ghufron PNIC Blok G (RW 035)</title>
+<title>Laporan Keuangan - Masjid Al-Ghufron PNIC Blok G (RW 035)</title>
 <link rel="icon" href="/favicon.jpg" type="image/jpeg">
 <link rel="stylesheet" href="/style.css">
 <style>
@@ -31,7 +31,7 @@
     <span class="brand-icon">☾</span>
     <div>
       <h1 id="pub-title">Masjid Al-Ghufron PNIC Blok G (RW 035)</h1>
-      <p>Transparansi Keuangan Masjid</p>
+      <p>Laporan Keuangan Masjid</p>
     </div>
   </div>
 </div>
@@ -61,8 +61,7 @@ async function load() {
         <div class="value" style="font-size:18px">${fmtMoney(a.saldo)}</div>
       </div>`).join('');
 
-    const maxAbs = Math.max(1, ...d.trend.map((t) => Math.max(t.masuk, t.keluar)));
-    const trendRows = d.trend.map((t) => `
+    const trendRowsOf = (rows) => rows.map((t) => `
       <tr>
         <td>${t.label}</td>
         <td class="amount in">${fmtMoney(t.masuk)}</td>
@@ -81,6 +80,20 @@ async function load() {
       </div>
 
       <div class="section">
+        <h2 class="section-title">Saldo per Kelompok Dana</h2>
+        <div class="grid grid-4">
+          <div class="card stat-card">
+            <div class="label">Kas Operasional</div>
+            <div class="value ${d.groupSaldo.operasional < 0 ? 'negative' : ''}" style="font-size:19px">${fmtMoney(d.groupSaldo.operasional)}</div>
+          </div>
+          <div class="card stat-card">
+            <div class="label">Dana Pembangunan</div>
+            <div class="value ${d.groupSaldo.pembangunan < 0 ? 'negative' : ''}" style="font-size:19px">${fmtMoney(d.groupSaldo.pembangunan)}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
         <h2 class="section-title">Ringkasan Bulan Ini (${d.monthLabel})</h2>
         <div class="grid grid-4">
           <div class="card stat-card">
@@ -96,14 +109,55 @@ async function load() {
             <div class="value ${d.monthMasuk - d.monthKeluar < 0 ? 'negative' : ''}" style="font-size:19px">${fmtMoney(d.monthMasuk - d.monthKeluar)}</div>
           </div>
         </div>
+        <div class="card" style="margin-top:12px">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Kelompok Dana</th><th>Pemasukan</th><th>Pengeluaran</th><th>Selisih</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td>Kas Operasional</td>
+                  <td class="amount in">${fmtMoney(d.monthByGroup.operasional.masuk)}</td>
+                  <td class="amount out">${fmtMoney(d.monthByGroup.operasional.keluar)}</td>
+                  <td class="amount ${d.monthByGroup.operasional.masuk - d.monthByGroup.operasional.keluar < 0 ? 'out' : 'in'}">${fmtMoney(d.monthByGroup.operasional.masuk - d.monthByGroup.operasional.keluar)}</td>
+                </tr>
+                <tr>
+                  <td>Dana Pembangunan</td>
+                  <td class="amount in">${fmtMoney(d.monthByGroup.pembangunan.masuk)}</td>
+                  <td class="amount out">${fmtMoney(d.monthByGroup.pembangunan.keluar)}</td>
+                  <td class="amount ${d.monthByGroup.pembangunan.masuk - d.monthByGroup.pembangunan.keluar < 0 ? 'out' : 'in'}">${fmtMoney(d.monthByGroup.pembangunan.masuk - d.monthByGroup.pembangunan.keluar)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       <div class="card section">
-        <h2 class="section-title">Tren 6 Bulan Terakhir</h2>
+        <h2 class="section-title">Tren 6 Bulan Terakhir &mdash; Gabungan</h2>
         <div class="table-wrap">
           <table class="trend-table">
             <thead><tr><th>Bulan</th><th>Pemasukan</th><th>Pengeluaran</th><th>Saldo Akhir</th></tr></thead>
-            <tbody>${trendRows}</tbody>
+            <tbody>${trendRowsOf(d.trend)}</tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card section">
+        <h2 class="section-title">Tren 6 Bulan Terakhir &mdash; Kas Operasional</h2>
+        <div class="table-wrap">
+          <table class="trend-table">
+            <thead><tr><th>Bulan</th><th>Pemasukan</th><th>Pengeluaran</th><th>Saldo Akhir</th></tr></thead>
+            <tbody>${trendRowsOf(d.trendByGroup.operasional)}</tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card section">
+        <h2 class="section-title">Tren 6 Bulan Terakhir &mdash; Dana Pembangunan</h2>
+        <div class="table-wrap">
+          <table class="trend-table">
+            <thead><tr><th>Bulan</th><th>Pemasukan</th><th>Pengeluaran</th><th>Saldo Akhir</th></tr></thead>
+            <tbody>${trendRowsOf(d.trendByGroup.pembangunan)}</tbody>
           </table>
         </div>
       </div>
