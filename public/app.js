@@ -177,7 +177,7 @@ async function renderDashboard() {
   const catRows = d.byCategory.length
     ? d.byCategory.map((c) => `
       <div class="progress-row">
-        <div class="name">${c.category_name}</div>
+        <div class="name">${c.category_name} <span class="badge ${c.group_type === 'pembangunan' ? 'out' : 'in'}" style="margin-left:4px">${c.group_type === 'pembangunan' ? 'Pembangunan' : 'Operasional'}</span></div>
         <div class="progress-bar"><div class="fill" style="width:${(c.total / maxCat) * 100}%; background:${c.type === 'pemasukan' ? 'var(--success)' : 'var(--danger)'}"></div></div>
         <div class="amt">${fmtMoney(c.total)}</div>
       </div>`).join('')
@@ -207,6 +207,19 @@ async function renderDashboard() {
       </div>
     </div>
     <div class="section">
+      <h2 class="section-title">Saldo per Kelompok Dana</h2>
+      <div class="grid grid-4">
+        <div class="card stat-card">
+          <div class="label">Kas Operasional</div>
+          <div class="value ${d.groupSaldo.operasional < 0 ? 'negative' : ''}">${fmtMoney(d.groupSaldo.operasional)}</div>
+        </div>
+        <div class="card stat-card">
+          <div class="label">Dana Pembangunan</div>
+          <div class="value ${d.groupSaldo.pembangunan < 0 ? 'negative' : ''}">${fmtMoney(d.groupSaldo.pembangunan)}</div>
+        </div>
+      </div>
+    </div>
+    <div class="section">
       <h2 class="section-title">Bulan Ini</h2>
       <div class="grid grid-4">
         <div class="card stat-card">
@@ -220,6 +233,27 @@ async function renderDashboard() {
         <div class="card stat-card">
           <div class="label">Selisih Bulan Ini</div>
           <div class="value ${d.monthMasuk - d.monthKeluar < 0 ? 'negative' : ''}">${fmtMoney(d.monthMasuk - d.monthKeluar)}</div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Kelompok Dana</th><th>Pemasukan</th><th>Pengeluaran</th><th>Selisih</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>Kas Operasional</td>
+                <td class="amount in">${fmtMoney(d.monthByGroup.operasional.masuk)}</td>
+                <td class="amount out">${fmtMoney(d.monthByGroup.operasional.keluar)}</td>
+                <td class="amount ${d.monthByGroup.operasional.masuk - d.monthByGroup.operasional.keluar < 0 ? 'out' : 'in'}">${fmtMoney(d.monthByGroup.operasional.masuk - d.monthByGroup.operasional.keluar)}</td>
+              </tr>
+              <tr>
+                <td>Dana Pembangunan</td>
+                <td class="amount in">${fmtMoney(d.monthByGroup.pembangunan.masuk)}</td>
+                <td class="amount out">${fmtMoney(d.monthByGroup.pembangunan.keluar)}</td>
+                <td class="amount ${d.monthByGroup.pembangunan.masuk - d.monthByGroup.pembangunan.keluar < 0 ? 'out' : 'in'}">${fmtMoney(d.monthByGroup.pembangunan.masuk - d.monthByGroup.pembangunan.keluar)}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

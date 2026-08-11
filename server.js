@@ -414,7 +414,7 @@ route('GET', '/api/dashboard', async (req, res) => {
   `, [`${monthPrefix}%`]);
 
   const byCategory = await db.all(`
-    SELECT c.name AS category_name, c.type, SUM(t.amount) AS total
+    SELECT c.name AS category_name, c.type, c.group_type, SUM(t.amount) AS total
     FROM transactions t JOIN categories c ON c.id = t.category_id
     WHERE t.date LIKE ?
     GROUP BY t.category_id
@@ -422,18 +422,44 @@ route('GET', '/api/dashboard', async (req, res) => {
   `, [`${monthPrefix}%`]);
 
   const recent = await db.all(`
-    SELECT t.*, a.name AS account_name, c.name AS category_name
+    SELECT t.*, a.name AS account_name, c.name AS category_name, c.group_type AS category_group
     FROM transactions t
     JOIN accounts a ON a.id = t.account_id
     JOIN categories c ON c.id = t.category_id
     ORDER BY t.date DESC, t.id DESC LIMIT 8
   `);
 
+  const groupTotals = await db.all(`
+    SELECT c.group_type AS group_type,
+      SUM(CASE WHEN t.type = 'pemasukan' THEN t.amount ELSE 0 END) AS masuk,
+      SUM(CASE WHEN t.type = 'pengeluaran' THEN t.amount ELSE 0 END) AS keluar
+    FROM transactions t JOIN categories c ON c.id = t.category_id
+    GROUP BY c.group_type
+  `);
+  const groupSaldo = { operasional: 0, pembangunan: 0 };
+  for (const g of groupTotals) groupSaldo[g.group_type] = (g.masuk || 0) - (g.keluar || 0);
+
+  const monthGroupTotals = await db.all(`
+    SELECT c.group_type AS group_type,
+      SUM(CASE WHEN t.type = 'pemasukan' THEN t.amount ELSE 0 END) AS masuk,
+      SUM(CASE WHEN t.type = 'pengeluaran' THEN t.amount ELSE 0 END) AS keluar
+    FROM transactions t JOIN categories c ON c.id = t.category_id
+    WHERE t.date LIKE ?
+    GROUP BY c.group_type
+  `, [`${monthPrefix}%`]);
+  const monthByGroup = {
+    operasional: { masuk: 0, keluar: 0 },
+    pembangunan: { masuk: 0, keluar: 0 },
+  };
+  for (const g of monthGroupTotals) monthByGroup[g.group_type] = { masuk: g.masuk || 0, keluar: g.keluar || 0 };
+
   sendJson(res, 200, {
     accounts,
     totalSaldo,
+    groupSaldo,
     monthMasuk: monthRow.masuk || 0,
     monthKeluar: monthRow.keluar || 0,
+    monthByGroup,
     byCategory,
     recent,
   });
