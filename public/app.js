@@ -306,6 +306,7 @@ async function renderTransaksi() {
         <td>${fmtDate(t.date)}</td>
         <td><span class="badge ${t.type === 'pemasukan' ? 'in' : 'out'}">${t.type === 'pemasukan' ? 'Masuk' : 'Keluar'}</span></td>
         <td>${t.category_name}</td>
+        <td><span class="badge ${t.fund_source === 'pembangunan' ? 'out' : 'in'}">${t.fund_source === 'pembangunan' ? 'Pembangunan' : 'Operasional'}</span></td>
         <td>${t.account_name}</td>
         <td>${t.description || ''}</td>
         <td class="amount ${t.type === 'pemasukan' ? 'in' : 'out'}">${t.type === 'pemasukan' ? '+' : '-'}${fmtMoney(t.amount)}</td>
@@ -314,7 +315,7 @@ async function renderTransaksi() {
           <button class="btn-sm btn-danger" data-del="${t.id}">Hapus</button>
         </td>
       </tr>`).join('')
-    : '<tr><td colspan="7" class="empty-state">Tidak ada transaksi sesuai filter</td></tr>';
+    : '<tr><td colspan="8" class="empty-state">Tidak ada transaksi sesuai filter</td></tr>';
 
   content.innerHTML = `
     <div class="card section">
@@ -334,7 +335,7 @@ async function renderTransaksi() {
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Tanggal</th><th>Jenis</th><th>Kategori</th><th>Kas/Rekening</th><th>Keterangan</th><th>Jumlah</th><th>Aksi</th></tr></thead>
+          <thead><tr><th>Tanggal</th><th>Jenis</th><th>Kategori</th><th>Sumber Dana</th><th>Kas/Rekening</th><th>Keterangan</th><th>Jumlah</th><th>Aksi</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>
@@ -399,6 +400,12 @@ function openTrxModal(trx) {
           <label>Kategori
             <select name="category_id" id="trx-category" required></select>
           </label>
+          <label id="trx-fund-wrap" class="hidden">Sumber Dana
+            <select name="fund_source" id="trx-fund">
+              <option value="operasional" ${trx?.fund_source === 'operasional' ? 'selected' : ''}>Kas Operasional</option>
+              <option value="pembangunan" ${trx?.fund_source === 'pembangunan' ? 'selected' : ''}>Dana Pembangunan</option>
+            </select>
+          </label>
           <label>Kas / Rekening
             <select name="account_id" required>${accOptions}</select>
           </label>
@@ -420,13 +427,35 @@ function openTrxModal(trx) {
 
   const typeSelect = backdrop.querySelector('#trx-type');
   const catSelect = backdrop.querySelector('#trx-category');
+  const fundWrap = backdrop.querySelector('#trx-fund-wrap');
+  const fundSelect = backdrop.querySelector('#trx-fund');
+
+  const updateFundVisibility = () => {
+    const isExpense = typeSelect.value === 'pengeluaran';
+    fundWrap.classList.toggle('hidden', !isExpense);
+    fundSelect.required = isExpense;
+  };
+
   const refreshCats = () => {
     catSelect.innerHTML = catOptions(typeSelect.value);
     if (trx) catSelect.value = trx.category_id;
+    updateFundVisibility();
+    suggestFundFromCategory();
   };
+
+  function suggestFundFromCategory() {
+    if (typeSelect.value !== 'pengeluaran') return;
+    const cat = state.categories.find((c) => c.id === Number(catSelect.value));
+    if (cat) fundSelect.value = cat.group_type;
+  }
+
   typeSelect.onchange = refreshCats;
+  catSelect.onchange = suggestFundFromCategory;
   refreshCats();
-  if (trx) backdrop.querySelector('[name="account_id"]').value = trx.account_id;
+  if (trx) {
+    backdrop.querySelector('[name="account_id"]').value = trx.account_id;
+    fundSelect.value = trx.fund_source || 'operasional';
+  }
 
   backdrop.querySelector('#trx-cancel').onclick = () => backdrop.remove();
   backdrop.addEventListener('click', (e) => { if (e.target === backdrop) backdrop.remove(); });

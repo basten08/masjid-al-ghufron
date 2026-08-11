@@ -137,7 +137,7 @@ function buildTransactionQuery(query) {
     params.$category_id = Number(query.get('category_id'));
   }
   if (query.get('group')) {
-    clauses.push('c.group_type = $group');
+    clauses.push('t.fund_source = $group');
     params.$group = query.get('group');
   }
   const where = clauses.length ? 'WHERE ' + clauses.join(' AND ') : '';
@@ -369,6 +369,18 @@ route('DELETE', '/api/categories/:id', async (req, res, params) => {
 route('GET', '/api/transactions', async (req, res, params, query) => {
   sendJson(res, 200, await listTransactions(query));
 });
+
+async function resolveFundSource(body) {
+  if (body.type === 'pengeluaran') {
+    if (!['operasional', 'pembangunan'].includes(body.fund_source)) {
+      throw new Error('Sumber dana wajib dipilih untuk transaksi pengeluaran');
+    }
+    return body.fund_source;
+  }
+  const category = await db.get('SELECT group_type FROM categories WHERE id = ?', [Number(body.category_id)]);
+  return category ? category.group_type : 'operasional';
+}
+
 route('POST', '/api/transactions', async (req, res) => {
   const body = await readBody(req);
   const required = ['date', 'type', 'account_id', 'category_id', 'amount'];
@@ -377,18 +389,30 @@ route('POST', '/api/transactions', async (req, res) => {
       return sendJson(res, 400, { error: `Field ${f} wajib diisi` });
     }
   }
+  let fundSource;
+  try {
+    fundSource = await resolveFundSource(body);
+  } catch (err) {
+    return sendJson(res, 400, { error: err.message });
+  }
   const info = await db.run(`
-    INSERT INTO transactions (date, type, account_id, category_id, amount, description)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `, [body.date, body.type, Number(body.account_id), Number(body.category_id), Number(body.amount), body.description || '']);
+    INSERT INTO transactions (date, type, account_id, category_id, amount, description, fund_source)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `, [body.date, body.type, Number(body.account_id), Number(body.category_id), Number(body.amount), body.description || '', fundSource]);
   sendJson(res, 201, { id: info.lastInsertRowid });
 });
 route('PUT', '/api/transactions/:id', async (req, res, params) => {
   const body = await readBody(req);
+  let fundSource;
+  try {
+    fundSource = await resolveFundSource(body);
+  } catch (err) {
+    return sendJson(res, 400, { error: err.message });
+  }
   await db.run(`
-    UPDATE transactions SET date = ?, type = ?, account_id = ?, category_id = ?, amount = ?, description = ?
+    UPDATE transactions SET date = ?, type = ?, account_id = ?, category_id = ?, amount = ?, description = ?, fund_source = ?
     WHERE id = ?
-  `, [body.date, body.type, Number(body.account_id), Number(body.category_id), Number(body.amount), body.description || '', Number(params.id)]);
+  `, [body.date, body.type, Number(body.account_id), Number(body.category_id), Number(body.amount), body.description || '', fundSource, Number(params.id)]);
   sendJson(res, 200, { ok: true });
 });
 route('DELETE', '/api/transactions/:id', async (req, res, params) => {
@@ -422,7 +446,7 @@ route('GET', '/api/dashboard', async (req, res) => {
   `, [`${monthPrefix}%`]);
 
   const recent = await db.all(`
-    SELECT t.*, a.name AS account_name, c.name AS category_name, c.group_type AS category_group
+    SELECT t.*, a.name AS account_name, c.name AS category_name
     FROM transactions t
     JOIN accounts a ON a.id = t.account_id
     JOIN categories c ON c.id = t.category_id
@@ -430,22 +454,22 @@ route('GET', '/api/dashboard', async (req, res) => {
   `);
 
   const groupTotals = await db.all(`
-    SELECT c.group_type AS group_type,
-      SUM(CASE WHEN t.type = 'pemasukan' THEN t.amount ELSE 0 END) AS masuk,
-      SUM(CASE WHEN t.type = 'pengeluaran' THEN t.amount ELSE 0 END) AS keluar
-    FROM transactions t JOIN categories c ON c.id = t.category_id
-    GROUP BY c.group_type
+    SELECT fund_source,
+      SUM(CASE WHEN type = 'pemasukan' THEN amount ELSE 0 END) AS masuk,
+      SUM(CASE WHEN type = 'pengeluaran' THEN amount ELSE 0 END) AS keluar
+    FROM transactions
+    GROUP BY fund_source
   `);
   const groupSaldo = { operasional: 0, pembangunan: 0 };
-  for (const g of groupTotals) groupSaldo[g.group_type] = (g.masuk || 0) - (g.keluar || 0);
+  for (const g of groupTotals) groupSaldo[g.fund_source] = (g.masuk || 0) - (g.keluar || 0);
 
   const monthGroupTotals = await db.all(`
-    SELECT c.group_type AS group_type,
-      SUM(CASE WHEN t.type = 'pemasukan' THEN t.amount ELSE 0 END) AS masuk,
-      SUM(CASE WHEN t.type = 'pengeluaran' THEN t.amount ELSE 0 END) AS keluar
-    FROM transactions t JOIN categories c ON c.id = t.category_id
-    WHERE t.date LIKE ?
-    GROUP BY c.group_type
+    SELECT fund_source,
+      SUM(CASE WHEN type = 'pemasukan' THEN amount ELSE 0 END) AS masuk,
+      SUM(CASE WHEN type = 'pengeluaran' THEN amount ELSE 0 END) AS keluar
+    FROM transactions
+    WHERE date LIKE ?
+    GROUP BY fund_source
   `, [`${monthPrefix}%`]);
   const monthByGroup = {
     operasional: { masuk: 0, keluar: 0 },
@@ -491,14 +515,14 @@ async function buildAnnualReport(year, group) {
     ? 0
     : (await db.get('SELECT COALESCE(SUM(initial_balance), 0) AS b FROM accounts')).b;
 
-  const groupFilter = group ? 'AND c.group_type = ?' : '';
+  const groupFilter = group ? 'AND t.fund_source = ?' : '';
   const groupParam = group ? [group] : [];
 
   const monthlyTotals = await db.all(`
     SELECT substr(t.date, 6, 2) AS m,
       SUM(CASE WHEN t.type = 'pemasukan' THEN t.amount ELSE 0 END) AS masuk,
       SUM(CASE WHEN t.type = 'pengeluaran' THEN t.amount ELSE 0 END) AS keluar
-    FROM transactions t JOIN categories c ON c.id = t.category_id
+    FROM transactions t
     WHERE substr(t.date, 1, 4) = ? ${groupFilter}
     GROUP BY m
   `, [String(year), ...groupParam]);
@@ -506,7 +530,7 @@ async function buildAnnualReport(year, group) {
 
   const cumBefore = (await db.get(`
     SELECT COALESCE(SUM(CASE WHEN t.type = 'pemasukan' THEN t.amount ELSE -t.amount END), 0) AS c
-    FROM transactions t JOIN categories c ON c.id = t.category_id
+    FROM transactions t
     WHERE t.date < ? ${groupFilter}
   `, [`${year}-01-01`, ...groupParam])).c;
 

@@ -68,6 +68,7 @@ const SCHEMA_STATEMENTS = [
     category_id INTEGER NOT NULL,
     amount REAL NOT NULL,
     description TEXT,
+    fund_source TEXT NOT NULL DEFAULT 'operasional',
     created_at TEXT DEFAULT (datetime('now')),
     FOREIGN KEY(account_id) REFERENCES accounts(id),
     FOREIGN KEY(category_id) REFERENCES categories(id)
@@ -92,6 +93,17 @@ async function migrate() {
     await client.execute("ALTER TABLE categories ADD COLUMN group_type TEXT NOT NULL DEFAULT 'operasional'");
     // Kolom baru ditambahkan ke database lama: tandai kategori donasi pembangunan yang sudah ada.
     await run("UPDATE categories SET group_type = 'pembangunan' WHERE name = 'Donasi Pembangunan'");
+  } catch (err) {
+    if (!/duplicate column/i.test(err.message)) throw err;
+  }
+
+  try {
+    await client.execute("ALTER TABLE transactions ADD COLUMN fund_source TEXT NOT NULL DEFAULT 'operasional'");
+    // Kolom baru: isi dari kelompok dana kategori masing-masing transaksi yang sudah ada.
+    await client.execute(`
+      UPDATE transactions
+      SET fund_source = (SELECT group_type FROM categories WHERE categories.id = transactions.category_id)
+    `);
   } catch (err) {
     if (!/duplicate column/i.test(err.message)) throw err;
   }
