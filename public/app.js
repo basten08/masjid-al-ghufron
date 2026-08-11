@@ -426,7 +426,7 @@ async function renderKategori() {
     if (!list.length) return '<tr><td colspan="2" class="empty-state">Belum ada kategori</td></tr>';
     return list.map((c) => `
       <tr>
-        <td>${c.name}</td>
+        <td>${c.name} <span class="badge ${c.group_type === 'pembangunan' ? 'out' : 'in'}">${c.group_type === 'pembangunan' ? 'Dana Pembangunan' : 'Kas Operasional'}</span></td>
         <td class="actions-cell">
           <button class="btn-sm" data-edit-cat="${c.id}">Edit</button>
           <button class="btn-sm btn-danger" data-del-cat="${c.id}">Hapus</button>
@@ -486,6 +486,12 @@ function openCatModal(cat) {
             <select name="type" required>
               <option value="pemasukan" ${cat?.type === 'pemasukan' ? 'selected' : ''}>Pemasukan</option>
               <option value="pengeluaran" ${cat?.type === 'pengeluaran' ? 'selected' : ''}>Pengeluaran</option>
+            </select>
+          </label>
+          <label>Kelompok Dana
+            <select name="group_type" required>
+              <option value="operasional" ${(cat?.group_type ?? 'operasional') === 'operasional' ? 'selected' : ''}>Kas Operasional</option>
+              <option value="pembangunan" ${cat?.group_type === 'pembangunan' ? 'selected' : ''}>Dana Pembangunan</option>
             </select>
           </label>
         </div>
@@ -613,6 +619,7 @@ function openAccModal(acc) {
 // ---------- Laporan ----------
 
 state.laporanMode = state.laporanMode || 'periode';
+state.laporanGroup = state.laporanGroup || 'operasional';
 
 async function renderLaporan() {
   const content = document.getElementById('content');
@@ -621,10 +628,16 @@ async function renderLaporan() {
       <button id="mode-periode" class="${state.laporanMode === 'periode' ? 'btn-primary' : ''}">Laporan per Periode</button>
       <button id="mode-tahunan" class="${state.laporanMode === 'tahunan' ? 'btn-primary' : ''}">Laporan Tahunan</button>
     </div>
+    <div class="toolbar">
+      <button id="group-operasional" class="${state.laporanGroup === 'operasional' ? 'btn-gold' : ''}">Kas Operasional</button>
+      <button id="group-pembangunan" class="${state.laporanGroup === 'pembangunan' ? 'btn-gold' : ''}">Dana Pembangunan</button>
+    </div>
     <div id="laporan-body"></div>
   `;
   document.getElementById('mode-periode').onclick = () => { state.laporanMode = 'periode'; renderLaporan(); };
   document.getElementById('mode-tahunan').onclick = () => { state.laporanMode = 'tahunan'; renderLaporan(); };
+  document.getElementById('group-operasional').onclick = () => { state.laporanGroup = 'operasional'; renderLaporan(); };
+  document.getElementById('group-pembangunan').onclick = () => { state.laporanGroup = 'pembangunan'; renderLaporan(); };
 
   if (state.laporanMode === 'periode') await renderLaporanPeriode();
   else await renderLaporanTahunan();
@@ -638,9 +651,11 @@ async function renderLaporanPeriode() {
   const defStart = firstOfMonth.toISOString().slice(0, 10);
   const defEnd = todayISO();
 
+  const groupLabel = state.laporanGroup === 'pembangunan' ? 'Dana Pembangunan' : 'Kas Operasional';
+
   content.innerHTML = `
     <div class="card section">
-      <h2 class="section-title">Laporan Periode</h2>
+      <h2 class="section-title">Laporan Periode &mdash; ${groupLabel}</h2>
       <div class="toolbar">
         <input type="date" id="r-start" value="${defStart}">
         <input type="date" id="r-end" value="${defEnd}">
@@ -657,7 +672,7 @@ async function renderLaporanPeriode() {
   async function generate() {
     const start = document.getElementById('r-start').value;
     const end = document.getElementById('r-end').value;
-    const qs = buildQuery({ start, end });
+    const qs = buildQuery({ start, end, group: state.laporanGroup });
     const rows = await api('/api/transactions?' + qs);
     const totalMasuk = rows.filter((r) => r.type === 'pemasukan').reduce((s, r) => s + r.amount, 0);
     const totalKeluar = rows.filter((r) => r.type === 'pengeluaran').reduce((s, r) => s + r.amount, 0);
@@ -692,7 +707,7 @@ async function renderLaporanPeriode() {
       window.location.href = '/api/export/excel?' + qs;
     };
     document.getElementById('r-print').onclick = () => {
-      printReport(start, end, rows, totalMasuk, totalKeluar);
+      printReport(start, end, rows, totalMasuk, totalKeluar, groupLabel);
     };
   }
 
@@ -700,7 +715,7 @@ async function renderLaporanPeriode() {
   generate();
 }
 
-function printReport(start, end, rows, totalMasuk, totalKeluar) {
+function printReport(start, end, rows, totalMasuk, totalKeluar, groupLabel) {
   const win = window.open('', '_blank');
   const bodyRows = rows.map((r) => `
     <tr>
@@ -714,7 +729,7 @@ function printReport(start, end, rows, totalMasuk, totalKeluar) {
     </tr>`).join('');
 
   win.document.write(`
-    <html><head><title>Laporan Keuangan Masjid Al-Ghufron Blok G RW 035</title>
+    <html><head><title>Laporan Keuangan Masjid Al-Ghufron Blok G RW 035 - ${groupLabel}</title>
     <style>
       body { font-family: Arial, sans-serif; padding: 24px; color: #1c2b24; }
       h1 { font-size: 18px; margin-bottom: 2px; }
@@ -725,7 +740,7 @@ function printReport(start, end, rows, totalMasuk, totalKeluar) {
       tfoot td { font-weight: bold; background: #fafafa; }
     </style>
     </head><body>
-      <h1>Laporan Keuangan Masjid Al-Ghufron Blok G RW 035</h1>
+      <h1>Laporan Keuangan Masjid Al-Ghufron Blok G RW 035 &mdash; ${groupLabel}</h1>
       <p class="sub">Periode: ${fmtDate(start)} s/d ${fmtDate(end)} · Dicetak: ${fmtDate(todayISO())}</p>
       <table>
         <thead><tr><th>Tanggal</th><th>Jenis</th><th>Kategori</th><th>Kas/Rekening</th><th>Keterangan</th><th>Pemasukan</th><th>Pengeluaran</th></tr></thead>
@@ -749,10 +764,11 @@ async function renderLaporanTahunan() {
   let years = [];
   try { years = await api('/api/report/years'); } catch (e) { years = [currentYear]; }
   state.laporanTahun = state.laporanTahun && years.includes(state.laporanTahun) ? state.laporanTahun : years[0];
+  const groupLabel = state.laporanGroup === 'pembangunan' ? 'Dana Pembangunan' : 'Kas Operasional';
 
   content.innerHTML = `
     <div class="card section">
-      <h2 class="section-title">Laporan Tahunan</h2>
+      <h2 class="section-title">Laporan Tahunan &mdash; ${groupLabel}</h2>
       <div class="toolbar">
         <select id="y-select">${years.map((y) => `<option value="${y}" ${y === state.laporanTahun ? 'selected' : ''}>${y}</option>`).join('')}</select>
         <div class="spacer"></div>
@@ -772,7 +788,7 @@ async function renderLaporanTahunan() {
     renderLaporanTahunan();
   };
 
-  const report = await api('/api/report/annual?year=' + state.laporanTahun);
+  const report = await api(`/api/report/annual?year=${state.laporanTahun}&group=${state.laporanGroup}`);
   const selisih = report.totalMasuk - report.totalKeluar;
 
   document.getElementById('y-summary').innerHTML = `
@@ -816,12 +832,12 @@ async function renderLaporanTahunan() {
   `;
 
   document.getElementById('y-export-excel').onclick = () => {
-    window.location.href = '/api/export/excel-annual?year=' + state.laporanTahun;
+    window.location.href = `/api/export/excel-annual?year=${state.laporanTahun}&group=${state.laporanGroup}`;
   };
-  document.getElementById('y-print').onclick = () => printAnnualReport(report);
+  document.getElementById('y-print').onclick = () => printAnnualReport(report, groupLabel);
 }
 
-function printAnnualReport(report) {
+function printAnnualReport(report, groupLabel) {
   const win = window.open('', '_blank');
   const monthRows = report.months.map((m) => `
     <tr>
@@ -836,7 +852,7 @@ function printAnnualReport(report) {
   `).join('');
 
   win.document.write(`
-    <html><head><title>Laporan Tahunan Masjid Al-Ghufron Blok G RW 035 ${report.year}</title>
+    <html><head><title>Laporan Tahunan Masjid Al-Ghufron Blok G RW 035 ${report.year} - ${groupLabel}</title>
     <style>
       body { font-family: Arial, sans-serif; padding: 24px; color: #1c2b24; }
       h1 { font-size: 18px; margin-bottom: 2px; }
@@ -847,7 +863,7 @@ function printAnnualReport(report) {
       th { background: #f0f4f1; text-align: left; }
     </style>
     </head><body>
-      <h1>Laporan Tahunan Masjid Al-Ghufron Blok G RW 035</h1>
+      <h1>Laporan Tahunan Masjid Al-Ghufron Blok G RW 035 &mdash; ${groupLabel}</h1>
       <p class="sub">Tahun ${report.year} · Dicetak: ${fmtDate(todayISO())}</p>
       <table>
         <thead><tr><th>Bulan</th><th>Pemasukan</th><th>Pengeluaran</th><th>Selisih</th><th>Saldo Akhir</th></tr></thead>

@@ -57,7 +57,8 @@ const SCHEMA_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS categories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
-    type TEXT NOT NULL
+    type TEXT NOT NULL,
+    group_type TEXT NOT NULL DEFAULT 'operasional'
   )`,
   `CREATE TABLE IF NOT EXISTS transactions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -86,6 +87,14 @@ async function migrate() {
   for (const stmt of SCHEMA_STATEMENTS) {
     await client.execute(stmt);
   }
+
+  try {
+    await client.execute("ALTER TABLE categories ADD COLUMN group_type TEXT NOT NULL DEFAULT 'operasional'");
+    // Kolom baru ditambahkan ke database lama: tandai kategori donasi pembangunan yang sudah ada.
+    await run("UPDATE categories SET group_type = 'pembangunan' WHERE name = 'Donasi Pembangunan'");
+  } catch (err) {
+    if (!/duplicate column/i.test(err.message)) throw err;
+  }
 }
 
 async function seedIfEmpty() {
@@ -97,16 +106,21 @@ async function seedIfEmpty() {
 
   const catCount = (await get('SELECT COUNT(*) AS c FROM categories')).c;
   if (catCount === 0) {
-    const pemasukan = [
-      'Infaq Jumat', 'Infaq Harian', 'Zakat', 'Sedekah',
-      'Donasi Pembangunan', 'Kotak Amal', 'Donasi Lainnya'
-    ];
-    const pengeluaran = [
+    const pemasukanOperasional = ['Infaq Jumat', 'Infaq Harian', 'Zakat', 'Sedekah', 'Kotak Amal', 'Donasi Lainnya'];
+    const pemasukanPembangunan = ['Donasi Pembangunan'];
+    const pengeluaranOperasional = [
       'Operasional (Listrik/Air)', 'Kebersihan', 'Honorarium (Imam/Khatib/Marbot)',
       'Kegiatan & Acara', 'Pemeliharaan & Perbaikan', 'Santunan Sosial', 'Lain-lain'
     ];
-    for (const name of pemasukan) await run('INSERT INTO categories (name, type) VALUES (?, ?)', [name, 'pemasukan']);
-    for (const name of pengeluaran) await run('INSERT INTO categories (name, type) VALUES (?, ?)', [name, 'pengeluaran']);
+    const pengeluaranPembangunan = ['Pembangunan & Renovasi'];
+
+    const insertCat = (name, type, group) =>
+      run('INSERT INTO categories (name, type, group_type) VALUES (?, ?, ?)', [name, type, group]);
+
+    for (const name of pemasukanOperasional) await insertCat(name, 'pemasukan', 'operasional');
+    for (const name of pemasukanPembangunan) await insertCat(name, 'pemasukan', 'pembangunan');
+    for (const name of pengeluaranOperasional) await insertCat(name, 'pengeluaran', 'operasional');
+    for (const name of pengeluaranPembangunan) await insertCat(name, 'pengeluaran', 'pembangunan');
   }
 
   const userCount = (await get('SELECT COUNT(*) AS c FROM users')).c;

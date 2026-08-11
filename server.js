@@ -136,6 +136,10 @@ function buildTransactionQuery(query) {
     clauses.push('t.category_id = $category_id');
     params.$category_id = Number(query.get('category_id'));
   }
+  if (query.get('group')) {
+    clauses.push('c.group_type = $group');
+    params.$group = query.get('group');
+  }
   const where = clauses.length ? 'WHERE ' + clauses.join(' AND ') : '';
   return { where, params };
 }
@@ -151,6 +155,12 @@ async function listTransactions(query) {
     ORDER BY t.date DESC, t.id DESC
   `;
   return db.all(sql, params);
+}
+
+function groupLabelOf(group) {
+  if (group === 'pembangunan') return 'Dana Pembangunan';
+  if (group === 'operasional') return 'Kas Operasional';
+  return 'Semua Dana';
 }
 
 function toExcelHtml(rows, title) {
@@ -195,7 +205,7 @@ function toExcelHtml(rows, title) {
   </html>`;
 }
 
-function toExcelHtmlAnnual(year, months, byCategory) {
+function toExcelHtmlAnnual(year, months, byCategory, groupLabel) {
   const fmt = (n) => new Intl.NumberFormat('id-ID').format(n);
   const monthRows = months.map((m) => `<tr>
       <td>${m.label}</td>
@@ -214,10 +224,10 @@ function toExcelHtmlAnnual(year, months, byCategory) {
     </tr>`).join('\n');
 
   return `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-  <head><meta charset="utf-8"><title>Laporan Tahunan ${year}</title></head>
+  <head><meta charset="utf-8"><title>Laporan Tahunan ${year} - ${groupLabel}</title></head>
   <body>
     <table border="1">
-      <tr><th colspan="5">Laporan Tahunan Masjid Al-Ghufron - ${year}</th></tr>
+      <tr><th colspan="5">Laporan Tahunan Masjid Al-Ghufron - ${groupLabel} - ${year}</th></tr>
       <tr><th>Bulan</th><th>Pemasukan</th><th>Pengeluaran</th><th>Selisih</th><th>Saldo Akhir Bulan</th></tr>
       ${monthRows}
       <tr>
@@ -338,12 +348,14 @@ route('GET', '/api/categories', async (req, res) => {
 route('POST', '/api/categories', async (req, res) => {
   const body = await readBody(req);
   if (!body.name || !body.type) return sendJson(res, 400, { error: 'name dan type wajib diisi' });
-  const info = await db.run('INSERT INTO categories (name, type) VALUES (?, ?)', [body.name, body.type]);
+  const group = body.group_type === 'pembangunan' ? 'pembangunan' : 'operasional';
+  const info = await db.run('INSERT INTO categories (name, type, group_type) VALUES (?, ?, ?)', [body.name, body.type, group]);
   sendJson(res, 201, { id: info.lastInsertRowid });
 }, { role: 'admin' });
 route('PUT', '/api/categories/:id', async (req, res, params) => {
   const body = await readBody(req);
-  await db.run('UPDATE categories SET name = ?, type = ? WHERE id = ?', [body.name, body.type, Number(params.id)]);
+  const group = body.group_type === 'pembangunan' ? 'pembangunan' : 'operasional';
+  await db.run('UPDATE categories SET name = ?, type = ?, group_type = ? WHERE id = ?', [body.name, body.type, group, Number(params.id)]);
   sendJson(res, 200, { ok: true });
 }, { role: 'admin' });
 route('DELETE', '/api/categories/:id', async (req, res, params) => {
@@ -432,11 +444,12 @@ route('GET', '/api/export/excel', async (req, res, params, query) => {
   const rows = await listTransactions(query);
   const start = query.get('start') || '-';
   const end = query.get('end') || '-';
-  const title = `Laporan Keuangan Masjid Al-Ghufron (${start} s/d ${end})`;
+  const groupLabel = groupLabelOf(query.get('group'));
+  const title = `Laporan Keuangan Masjid Al-Ghufron - ${groupLabel} (${start} s/d ${end})`;
   const html = toExcelHtml(rows, title);
   res.writeHead(200, {
     'Content-Type': 'application/vnd.ms-excel; charset=utf-8',
-    'Content-Disposition': `attachment; filename="laporan-keuangan-${start}_${end}.xls"`,
+    'Content-Disposition': `attachment; filename="laporan-keuangan-${query.get('group') || 'semua'}-${start}_${end}.xls"`,
   });
   res.end(html);
 });
@@ -445,22 +458,31 @@ route('GET', '/api/export/excel', async (req, res, params, query) => {
 
 const MONTH_LABELS = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
-async function buildAnnualReport(year) {
-  const baseline = (await db.get('SELECT COALESCE(SUM(initial_balance), 0) AS b FROM accounts')).b;
+async function buildAnnualReport(year, group) {
+  // Saldo baseline (saldo awal kas/rekening) hanya relevan untuk laporan gabungan semua dana;
+  // untuk laporan per kelompok dana (pembangunan/operasional), saldo dihitung murni dari arus kas kelompok itu sendiri.
+  const baseline = group
+    ? 0
+    : (await db.get('SELECT COALESCE(SUM(initial_balance), 0) AS b FROM accounts')).b;
+
+  const groupFilter = group ? 'AND c.group_type = ?' : '';
+  const groupParam = group ? [group] : [];
 
   const monthlyTotals = await db.all(`
-    SELECT substr(date, 6, 2) AS m,
-      SUM(CASE WHEN type = 'pemasukan' THEN amount ELSE 0 END) AS masuk,
-      SUM(CASE WHEN type = 'pengeluaran' THEN amount ELSE 0 END) AS keluar
-    FROM transactions WHERE substr(date, 1, 4) = ?
+    SELECT substr(t.date, 6, 2) AS m,
+      SUM(CASE WHEN t.type = 'pemasukan' THEN t.amount ELSE 0 END) AS masuk,
+      SUM(CASE WHEN t.type = 'pengeluaran' THEN t.amount ELSE 0 END) AS keluar
+    FROM transactions t JOIN categories c ON c.id = t.category_id
+    WHERE substr(t.date, 1, 4) = ? ${groupFilter}
     GROUP BY m
-  `, [String(year)]);
+  `, [String(year), ...groupParam]);
   const monthMap = new Map(monthlyTotals.map((r) => [Number(r.m), r]));
 
   const cumBefore = (await db.get(`
-    SELECT COALESCE(SUM(CASE WHEN type = 'pemasukan' THEN amount ELSE -amount END), 0) AS c
-    FROM transactions WHERE date < ?
-  `, [`${year}-01-01`])).c;
+    SELECT COALESCE(SUM(CASE WHEN t.type = 'pemasukan' THEN t.amount ELSE -t.amount END), 0) AS c
+    FROM transactions t JOIN categories c ON c.id = t.category_id
+    WHERE t.date < ? ${groupFilter}
+  `, [`${year}-01-01`, ...groupParam])).c;
 
   let running = baseline + cumBefore;
   const months = [];
@@ -475,20 +497,20 @@ async function buildAnnualReport(year) {
   const byCategory = await db.all(`
     SELECT c.name AS category_name, c.type, SUM(t.amount) AS total
     FROM transactions t JOIN categories c ON c.id = t.category_id
-    WHERE substr(t.date, 1, 4) = ?
+    WHERE substr(t.date, 1, 4) = ? ${groupFilter}
     GROUP BY t.category_id
     ORDER BY c.type, total DESC
-  `, [String(year)]);
+  `, [String(year), ...groupParam]);
 
   const totalMasuk = months.reduce((s, m) => s + m.masuk, 0);
   const totalKeluar = months.reduce((s, m) => s + m.keluar, 0);
 
-  return { year, months, byCategory, totalMasuk, totalKeluar };
+  return { year, group: group || null, months, byCategory, totalMasuk, totalKeluar };
 }
 
 route('GET', '/api/report/annual', async (req, res, params, query) => {
   const year = Number(query.get('year')) || new Date().getFullYear();
-  sendJson(res, 200, await buildAnnualReport(year));
+  sendJson(res, 200, await buildAnnualReport(year, query.get('group')));
 });
 
 route('GET', '/api/report/years', async (req, res) => {
@@ -501,11 +523,12 @@ route('GET', '/api/report/years', async (req, res) => {
 
 route('GET', '/api/export/excel-annual', async (req, res, params, query) => {
   const year = Number(query.get('year')) || new Date().getFullYear();
-  const report = await buildAnnualReport(year);
-  const html = toExcelHtmlAnnual(year, report.months, report.byCategory);
+  const group = query.get('group');
+  const report = await buildAnnualReport(year, group);
+  const html = toExcelHtmlAnnual(year, report.months, report.byCategory, groupLabelOf(group));
   res.writeHead(200, {
     'Content-Type': 'application/vnd.ms-excel; charset=utf-8',
-    'Content-Disposition': `attachment; filename="laporan-tahunan-${year}.xls"`,
+    'Content-Disposition': `attachment; filename="laporan-tahunan-${group || 'semua'}-${year}.xls"`,
   });
   res.end(html);
 });
