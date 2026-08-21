@@ -290,32 +290,16 @@ function buildQuery(filters) {
   return p.toString();
 }
 
+const TRANS_PAGE_SIZE = 50;
+
 async function renderTransaksi() {
   await loadRefData();
   const qs = buildQuery(state.filters);
   state.transactions = await api('/api/transactions' + (qs ? '?' + qs : ''));
+  state.transPage = 1;
   const content = document.getElementById('content');
 
-  const catOptions = (type) => state.categories.filter((c) => c.type === type)
-    .map((c) => `<option value="${c.id}">${c.name}</option>`).join('');
   const accOptions = state.accounts.map((a) => `<option value="${a.id}">${a.name}</option>`).join('');
-
-  const rows = state.transactions.length
-    ? state.transactions.map((t) => `
-      <tr>
-        <td>${fmtDate(t.date)}</td>
-        <td><span class="badge ${t.type === 'pemasukan' ? 'in' : 'out'}">${t.type === 'pemasukan' ? 'Masuk' : 'Keluar'}</span></td>
-        <td>${t.category_name}</td>
-        <td><span class="badge ${t.fund_source === 'pembangunan' ? 'out' : 'in'}">${t.fund_source === 'pembangunan' ? 'Pembangunan' : 'Operasional'}</span></td>
-        <td>${t.account_name}</td>
-        <td>${t.description || ''}</td>
-        <td class="amount ${t.type === 'pemasukan' ? 'in' : 'out'}">${t.type === 'pemasukan' ? '+' : '-'}${fmtMoney(t.amount)}</td>
-        <td class="actions-cell">
-          <button class="btn-sm" data-edit="${t.id}">Edit</button>
-          <button class="btn-sm btn-danger" data-del="${t.id}">Hapus</button>
-        </td>
-      </tr>`).join('')
-    : '<tr><td colspan="8" class="empty-state">Tidak ada transaksi sesuai filter</td></tr>';
 
   content.innerHTML = `
     <div class="card section">
@@ -333,12 +317,8 @@ async function renderTransaksi() {
         <div class="spacer"></div>
         <button class="btn-primary" id="btn-new-trx">+ Tambah Transaksi</button>
       </div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Tanggal</th><th>Jenis</th><th>Kategori</th><th>Sumber Dana</th><th>Kas/Rekening</th><th>Keterangan</th><th>Jumlah</th><th>Aksi</th></tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>
+      <div class="table-wrap" id="trx-table-wrap"></div>
+      <div class="toolbar" id="trx-pagination" style="margin-top:10px; margin-bottom:0"></div>
     </div>
   `;
 
@@ -357,6 +337,53 @@ async function renderTransaksi() {
   };
   document.getElementById('btn-new-trx').onclick = () => openTrxModal();
 
+  renderTransTable();
+}
+
+function renderTransTable() {
+  const totalRows = state.transactions.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / TRANS_PAGE_SIZE));
+  state.transPage = Math.min(Math.max(1, state.transPage || 1), totalPages);
+  const startIdx = (state.transPage - 1) * TRANS_PAGE_SIZE;
+  const pageItems = state.transactions.slice(startIdx, startIdx + TRANS_PAGE_SIZE);
+
+  const rows = pageItems.length
+    ? pageItems.map((t) => `
+      <tr>
+        <td>${fmtDate(t.date)}</td>
+        <td><span class="badge ${t.type === 'pemasukan' ? 'in' : 'out'}">${t.type === 'pemasukan' ? 'Masuk' : 'Keluar'}</span></td>
+        <td>${t.category_name}</td>
+        <td><span class="badge ${t.fund_source === 'pembangunan' ? 'out' : 'in'}">${t.fund_source === 'pembangunan' ? 'Pembangunan' : 'Operasional'}</span></td>
+        <td>${t.account_name}</td>
+        <td>${t.description || ''}</td>
+        <td class="amount ${t.type === 'pemasukan' ? 'in' : 'out'}">${t.type === 'pemasukan' ? '+' : '-'}${fmtMoney(t.amount)}</td>
+        <td class="actions-cell">
+          <button class="btn-sm" data-edit="${t.id}">Edit</button>
+          <button class="btn-sm btn-danger" data-del="${t.id}">Hapus</button>
+        </td>
+      </tr>`).join('')
+    : '<tr><td colspan="8" class="empty-state">Tidak ada transaksi sesuai filter</td></tr>';
+
+  document.getElementById('trx-table-wrap').innerHTML = `
+    <table>
+      <thead><tr><th>Tanggal</th><th>Jenis</th><th>Kategori</th><th>Sumber Dana</th><th>Kas/Rekening</th><th>Keterangan</th><th>Jumlah</th><th>Aksi</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+
+  const rangeStart = totalRows === 0 ? 0 : startIdx + 1;
+  const rangeEnd = Math.min(startIdx + TRANS_PAGE_SIZE, totalRows);
+  document.getElementById('trx-pagination').innerHTML = `
+    <button id="trx-prev" ${state.transPage <= 1 ? 'disabled' : ''}>&laquo; Sebelumnya</button>
+    <span style="font-size:12.5px; color:var(--muted)">Menampilkan ${rangeStart}-${rangeEnd} dari ${totalRows} transaksi &middot; Halaman ${state.transPage} dari ${totalPages}</span>
+    <div class="spacer"></div>
+    <button id="trx-next" ${state.transPage >= totalPages ? 'disabled' : ''}>Berikutnya &raquo;</button>
+  `;
+
+  document.getElementById('trx-prev').onclick = () => { state.transPage--; renderTransTable(); };
+  document.getElementById('trx-next').onclick = () => { state.transPage++; renderTransTable(); };
+
+  const content = document.getElementById('content');
   content.querySelectorAll('[data-edit]').forEach((btn) => {
     btn.onclick = () => {
       const t = state.transactions.find((x) => x.id === Number(btn.dataset.edit));
