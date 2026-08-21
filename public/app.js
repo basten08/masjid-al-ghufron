@@ -4,7 +4,7 @@ const state = {
   accounts: [],
   categories: [],
   transactions: [],
-  filters: { start: '', end: '', type: '', account_id: '', category_id: '' },
+  filters: { start: '', end: '', type: '', account_id: '', category_id: '', group: '' },
 };
 
 const TABS = [
@@ -312,6 +312,11 @@ async function renderTransaksi() {
           <option value="pengeluaran" ${state.filters.type === 'pengeluaran' ? 'selected' : ''}>Pengeluaran</option>
         </select>
         <select id="f-account"><option value="">Semua Kas</option>${accOptions}</select>
+        <select id="f-group">
+          <option value="">Semua Sumber Dana</option>
+          <option value="operasional" ${state.filters.group === 'operasional' ? 'selected' : ''}>Kas Operasional</option>
+          <option value="pembangunan" ${state.filters.group === 'pembangunan' ? 'selected' : ''}>Dana Pembangunan</option>
+        </select>
         <button id="f-apply">Terapkan Filter</button>
         <button id="f-reset">Reset</button>
         <div class="spacer"></div>
@@ -329,10 +334,11 @@ async function renderTransaksi() {
     state.filters.end = document.getElementById('f-end').value;
     state.filters.type = document.getElementById('f-type').value;
     state.filters.account_id = document.getElementById('f-account').value;
+    state.filters.group = document.getElementById('f-group').value;
     renderTransaksi();
   };
   document.getElementById('f-reset').onclick = () => {
-    state.filters = { start: '', end: '', type: '', account_id: '', category_id: '' };
+    state.filters = { start: '', end: '', type: '', account_id: '', category_id: '', group: '' };
     renderTransaksi();
   };
   document.getElementById('btn-new-trx').onclick = () => openTrxModal();
