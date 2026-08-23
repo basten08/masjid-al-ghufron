@@ -171,6 +171,10 @@ async function renderDashboard() {
       <div class="label">${a.name} (${a.type === 'tunai' ? 'Tunai' : 'Bank'})</div>
       <div class="value ${a.saldo < 0 ? 'negative' : ''}">${fmtMoney(a.saldo)}</div>
       <div class="sub">Masuk ${fmtMoney(a.total_masuk)} · Keluar ${fmtMoney(a.total_keluar)}</div>
+      <div style="margin-top:8px; padding-top:8px; border-top:1px solid var(--border); font-size:12px; display:flex; flex-direction:column; gap:3px;">
+        <div style="display:flex; justify-content:space-between;"><span style="color:var(--muted)">Kas Operasional</span><span class="${a.saldoOperasional < 0 ? 'amount out' : ''}">${fmtMoney(a.saldoOperasional)}</span></div>
+        <div style="display:flex; justify-content:space-between;"><span style="color:var(--muted)">Dana Pembangunan</span><span class="${a.saldoPembangunan < 0 ? 'amount out' : ''}">${fmtMoney(a.saldoPembangunan)}</span></div>
+      </div>
     </div>`).join('');
 
   const maxCat = Math.max(1, ...d.byCategory.map((c) => c.total));
@@ -216,6 +220,23 @@ async function renderDashboard() {
         <div class="card stat-card">
           <div class="label">Dana Pembangunan</div>
           <div class="value ${d.groupSaldo.pembangunan < 0 ? 'negative' : ''}">${fmtMoney(d.groupSaldo.pembangunan)}</div>
+        </div>
+      </div>
+    </div>
+    <div class="section">
+      <h2 class="section-title">Minggu Ini (${d.weekLabel})</h2>
+      <div class="grid grid-4">
+        <div class="card stat-card">
+          <div class="label">Pemasukan Minggu Ini</div>
+          <div class="value">${fmtMoney(d.weekMasuk)}</div>
+        </div>
+        <div class="card stat-card">
+          <div class="label">Pengeluaran Minggu Ini</div>
+          <div class="value negative">${fmtMoney(d.weekKeluar)}</div>
+        </div>
+        <div class="card stat-card">
+          <div class="label">Selisih Minggu Ini</div>
+          <div class="value ${d.weekMasuk - d.weekKeluar < 0 ? 'negative' : ''}">${fmtMoney(d.weekMasuk - d.weekKeluar)}</div>
         </div>
       </div>
     </div>

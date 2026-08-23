@@ -102,13 +102,29 @@ async function computeAccountBalances() {
     FROM transactions GROUP BY account_id
   `);
   const sumMap = new Map(sums.map((s) => [s.account_id, s]));
+
+  const groupSums = await db.all(`
+    SELECT account_id, fund_source,
+      SUM(CASE WHEN type = 'pemasukan' THEN amount ELSE 0 END) AS masuk,
+      SUM(CASE WHEN type = 'pengeluaran' THEN amount ELSE 0 END) AS keluar
+    FROM transactions GROUP BY account_id, fund_source
+  `);
+  const groupMap = new Map();
+  for (const g of groupSums) {
+    if (!groupMap.has(g.account_id)) groupMap.set(g.account_id, { operasional: 0, pembangunan: 0 });
+    groupMap.get(g.account_id)[g.fund_source] = (g.masuk || 0) - (g.keluar || 0);
+  }
+
   return accounts.map((a) => {
     const s = sumMap.get(a.id) || { masuk: 0, keluar: 0 };
+    const groups = groupMap.get(a.id) || { operasional: 0, pembangunan: 0 };
     return {
       ...a,
       total_masuk: s.masuk || 0,
       total_keluar: s.keluar || 0,
       saldo: a.initial_balance + (s.masuk || 0) - (s.keluar || 0),
+      saldoOperasional: groups.operasional,
+      saldoPembangunan: groups.pembangunan,
     };
   });
 }
@@ -430,6 +446,23 @@ route('GET', '/api/dashboard', async (req, res) => {
   const m = String(now.getMonth() + 1).padStart(2, '0');
   const monthPrefix = `${y}-${m}`;
 
+  const dayOfWeek = now.getDay(); // 0=Minggu, 1=Senin, ... 6=Sabtu
+  const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const weekStartDate = new Date(now);
+  weekStartDate.setDate(now.getDate() + diffToMonday);
+  const weekEndDate = new Date(weekStartDate);
+  weekEndDate.setDate(weekStartDate.getDate() + 6);
+  const fmtISODate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const weekStart = fmtISODate(weekStartDate);
+  const weekEnd = fmtISODate(weekEndDate);
+
+  const weekRow = await db.get(`
+    SELECT
+      SUM(CASE WHEN type = 'pemasukan' THEN amount ELSE 0 END) AS masuk,
+      SUM(CASE WHEN type = 'pengeluaran' THEN amount ELSE 0 END) AS keluar
+    FROM transactions WHERE date >= ? AND date <= ?
+  `, [weekStart, weekEnd]);
+
   const monthRow = await db.get(`
     SELECT
       SUM(CASE WHEN type = 'pemasukan' THEN amount ELSE 0 END) AS masuk,
@@ -475,12 +508,15 @@ route('GET', '/api/dashboard', async (req, res) => {
     operasional: { masuk: 0, keluar: 0 },
     pembangunan: { masuk: 0, keluar: 0 },
   };
-  for (const g of monthGroupTotals) monthByGroup[g.group_type] = { masuk: g.masuk || 0, keluar: g.keluar || 0 };
+  for (const g of monthGroupTotals) monthByGroup[g.fund_source] = { masuk: g.masuk || 0, keluar: g.keluar || 0 };
 
   sendJson(res, 200, {
     accounts,
     totalSaldo,
     groupSaldo,
+    weekLabel: `${weekStartDate.getDate()} - ${weekEndDate.getDate()} ${MONTH_LABELS[weekEndDate.getMonth()]} ${weekEndDate.getFullYear()}`,
+    weekMasuk: weekRow.masuk || 0,
+    weekKeluar: weekRow.keluar || 0,
     monthMasuk: monthRow.masuk || 0,
     monthKeluar: monthRow.keluar || 0,
     monthByGroup,
