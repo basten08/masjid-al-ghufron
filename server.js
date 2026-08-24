@@ -436,6 +436,40 @@ route('DELETE', '/api/transactions/:id', async (req, res, params) => {
   sendJson(res, 200, { ok: true });
 });
 
+function fmtISODate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function getWeekRange(now) {
+  const dayOfWeek = now.getDay(); // 0=Minggu, 1=Senin, ... 6=Sabtu
+  const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const weekStartDate = new Date(now);
+  weekStartDate.setDate(now.getDate() + diffToMonday);
+  const weekEndDate = new Date(weekStartDate);
+  weekEndDate.setDate(weekStartDate.getDate() + 6);
+  return {
+    weekStartDate,
+    weekEndDate,
+    weekStart: fmtISODate(weekStartDate),
+    weekEnd: fmtISODate(weekEndDate),
+  };
+}
+
+async function getWeekTotals(now) {
+  const { weekStart, weekEnd, weekStartDate, weekEndDate } = getWeekRange(now);
+  const row = await db.get(`
+    SELECT
+      SUM(CASE WHEN type = 'pemasukan' THEN amount ELSE 0 END) AS masuk,
+      SUM(CASE WHEN type = 'pengeluaran' THEN amount ELSE 0 END) AS keluar
+    FROM transactions WHERE date >= ? AND date <= ?
+  `, [weekStart, weekEnd]);
+  return {
+    weekMasuk: row.masuk || 0,
+    weekKeluar: row.keluar || 0,
+    weekLabel: `${weekStartDate.getDate()} - ${weekEndDate.getDate()} ${MONTH_LABELS[weekEndDate.getMonth()]} ${weekEndDate.getFullYear()}`,
+  };
+}
+
 // Dashboard
 route('GET', '/api/dashboard', async (req, res) => {
   const accounts = await computeAccountBalances();
@@ -446,22 +480,7 @@ route('GET', '/api/dashboard', async (req, res) => {
   const m = String(now.getMonth() + 1).padStart(2, '0');
   const monthPrefix = `${y}-${m}`;
 
-  const dayOfWeek = now.getDay(); // 0=Minggu, 1=Senin, ... 6=Sabtu
-  const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-  const weekStartDate = new Date(now);
-  weekStartDate.setDate(now.getDate() + diffToMonday);
-  const weekEndDate = new Date(weekStartDate);
-  weekEndDate.setDate(weekStartDate.getDate() + 6);
-  const fmtISODate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  const weekStart = fmtISODate(weekStartDate);
-  const weekEnd = fmtISODate(weekEndDate);
-
-  const weekRow = await db.get(`
-    SELECT
-      SUM(CASE WHEN type = 'pemasukan' THEN amount ELSE 0 END) AS masuk,
-      SUM(CASE WHEN type = 'pengeluaran' THEN amount ELSE 0 END) AS keluar
-    FROM transactions WHERE date >= ? AND date <= ?
-  `, [weekStart, weekEnd]);
+  const weekTotals = await getWeekTotals(now);
 
   const monthRow = await db.get(`
     SELECT
@@ -514,9 +533,9 @@ route('GET', '/api/dashboard', async (req, res) => {
     accounts,
     totalSaldo,
     groupSaldo,
-    weekLabel: `${weekStartDate.getDate()} - ${weekEndDate.getDate()} ${MONTH_LABELS[weekEndDate.getMonth()]} ${weekEndDate.getFullYear()}`,
-    weekMasuk: weekRow.masuk || 0,
-    weekKeluar: weekRow.keluar || 0,
+    weekLabel: weekTotals.weekLabel,
+    weekMasuk: weekTotals.weekMasuk,
+    weekKeluar: weekTotals.weekKeluar,
     monthMasuk: monthRow.masuk || 0,
     monthKeluar: monthRow.keluar || 0,
     monthByGroup,
@@ -651,11 +670,18 @@ async function buildTrend(monthKeys, baseline, group) {
 
 async function buildPublicSummary() {
   const rawAccounts = await computeAccountBalances();
-  const accounts = rawAccounts.map((a) => ({ name: a.name, type: a.type, saldo: a.saldo }));
+  const accounts = rawAccounts.map((a) => ({
+    name: a.name,
+    type: a.type,
+    saldo: a.saldo,
+    saldoOperasional: a.saldoOperasional,
+    saldoPembangunan: a.saldoPembangunan,
+  }));
   const totalSaldo = accounts.reduce((s, a) => s + a.saldo, 0);
   const baseline = (await db.get('SELECT COALESCE(SUM(initial_balance), 0) AS b FROM accounts')).b;
 
   const now = new Date();
+  const weekTotals = await getWeekTotals(now);
   const monthKeys = [];
   for (let i = 5; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -673,6 +699,9 @@ async function buildPublicSummary() {
   return {
     totalSaldo,
     accounts,
+    weekLabel: weekTotals.weekLabel,
+    weekMasuk: weekTotals.weekMasuk,
+    weekKeluar: weekTotals.weekKeluar,
     monthLabel: current.label,
     monthMasuk: current.masuk,
     monthKeluar: current.keluar,
