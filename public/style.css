@@ -358,6 +358,10 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--gold-400); 
 .person-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 13px; color: var(--text); text-align: left; }
 .person-row:last-child { margin-bottom: 0; }
 
+.org-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 700px) { .org-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 480px) { .org-grid { grid-template-columns: minmax(0, 1fr); } }
+
 .prayer-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 4px; border-bottom: 1px solid var(--border); }
 .prayer-row:last-child { border-bottom: none; }
 .prayer-row .prayer-name { font-size: 13.5px; color: var(--text); font-weight: 500; }
