@@ -171,9 +171,15 @@ async function renderDashboard() {
       <div class="label">${a.name} (${a.type === 'tunai' ? 'Tunai' : 'Bank'})</div>
       <div class="value ${a.saldo < 0 ? 'negative' : ''}">${fmtMoney(a.saldo)}</div>
       <div class="sub">Masuk ${fmtMoney(a.total_masuk)} · Keluar ${fmtMoney(a.total_keluar)}</div>
-      <div style="margin-top:8px; padding-top:8px; border-top:1px solid var(--border); font-size:12px; display:flex; flex-direction:column; gap:3px;">
-        <div style="display:flex; justify-content:space-between;"><span style="color:var(--muted)">Kas Operasional</span><span class="${a.saldoOperasional < 0 ? 'amount out' : ''}">${fmtMoney(a.saldoOperasional)}</span></div>
-        <div style="display:flex; justify-content:space-between;"><span style="color:var(--muted)">Dana Pembangunan</span><span class="${a.saldoPembangunan < 0 ? 'amount out' : ''}">${fmtMoney(a.saldoPembangunan)}</span></div>
+      <div style="margin-top:10px; padding-top:10px; border-top:1px solid var(--border); display:grid; grid-template-columns:1fr 1fr; gap:8px; text-align:left;">
+        <div>
+          <div style="font-size:11px; color:var(--muted); white-space:nowrap;">Operasional</div>
+          <div style="font-size:13px; font-weight:600; ${a.saldoOperasional < 0 ? 'color:var(--danger)' : ''}">${fmtMoney(a.saldoOperasional)}</div>
+        </div>
+        <div>
+          <div style="font-size:11px; color:var(--muted); white-space:nowrap;">Pembangunan</div>
+          <div style="font-size:13px; font-weight:600; ${a.saldoPembangunan < 0 ? 'color:var(--danger)' : ''}">${fmtMoney(a.saldoPembangunan)}</div>
+        </div>
       </div>
     </div>`).join('');
 
