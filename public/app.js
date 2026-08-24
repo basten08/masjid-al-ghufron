@@ -13,6 +13,7 @@ const TABS = [
   { key: 'kategori', label: 'Kategori', roles: ['admin'] },
   { key: 'kas', label: 'Kas / Rekening', roles: ['admin'] },
   { key: 'laporan', label: 'Laporan', roles: ['admin', 'bendahara'] },
+  { key: 'berita', label: 'Berita', roles: ['admin', 'bendahara'] },
   { key: 'user', label: 'Kelola User', roles: ['admin'] },
 ];
 
@@ -154,6 +155,7 @@ async function render() {
     else if (state.tab === 'kategori') await renderKategori();
     else if (state.tab === 'kas') await renderKas();
     else if (state.tab === 'laporan') await renderLaporan();
+    else if (state.tab === 'berita') await renderBerita();
     else if (state.tab === 'user') await renderUsers();
   } catch (err) {
     content.innerHTML = `<div class="empty-state">Gagal memuat: ${err.message}</div>`;
@@ -995,6 +997,159 @@ function printAnnualReport(report, groupLabel) {
     </body></html>
   `);
   win.document.close();
+}
+
+// ---------- Berita ----------
+
+function compressImageFile(file, maxDim = 1000, quality = 0.72) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) { height = Math.round(height * (maxDim / width)); width = maxDim; }
+          else { width = Math.round(width * (maxDim / height)); height = maxDim; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function renderBerita() {
+  const list = await api('/api/berita');
+  const content = document.getElementById('content');
+
+  const rows = list.length ? list.map((b) => `
+    <tr>
+      <td style="width:64px">${b.image ? `<img src="${b.image}" style="width:56px;height:56px;object-fit:cover;border-radius:8px;display:block;">` : ''}</td>
+      <td>${fmtDate(b.post_date)}</td>
+      <td><span class="badge in">${b.tag}</span></td>
+      <td>${b.title}</td>
+      <td class="actions-cell">
+        <button class="btn-sm" data-edit-berita="${b.id}">Edit</button>
+        <button class="btn-sm btn-danger" data-del-berita="${b.id}">Hapus</button>
+      </td>
+    </tr>`).join('') : '<tr><td colspan="5" class="empty-state">Belum ada berita/pengumuman</td></tr>';
+
+  content.innerHTML = `
+    <div class="card">
+      <div class="toolbar">
+        <h2 class="section-title" style="margin:0">Berita &amp; Kegiatan</h2>
+        <p style="font-size:12.5px; color:var(--muted); margin:2px 0 0;">Tampil di halaman publik Berita, lengkap dengan foto kegiatan.</p>
+        <div class="spacer"></div>
+        <button class="btn-primary" id="btn-new-berita">+ Tambah Berita</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Foto</th><th>Tanggal</th><th>Tag</th><th>Judul</th><th>Aksi</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('btn-new-berita').onclick = () => openBeritaModal();
+  content.querySelectorAll('[data-edit-berita]').forEach((btn) => {
+    btn.onclick = () => {
+      const b = list.find((x) => x.id === Number(btn.dataset.editBerita));
+      openBeritaModal(b);
+    };
+  });
+  content.querySelectorAll('[data-del-berita]').forEach((btn) => {
+    btn.onclick = async () => {
+      if (!confirm('Hapus berita ini?')) return;
+      try {
+        await api('/api/berita/' + btn.dataset.delBerita, { method: 'DELETE' });
+        toast('Berita dihapus');
+        renderBerita();
+      } catch (err) { toast(err.message, true); }
+    };
+  });
+}
+
+function openBeritaModal(item) {
+  const isEdit = !!item;
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.innerHTML = `
+    <div class="modal">
+      <h3>${isEdit ? 'Edit' : 'Tambah'} Berita</h3>
+      <form id="berita-form">
+        <div class="form-grid cols-2">
+          <label>Judul
+            <input type="text" name="title" required value="${item ? item.title.replace(/"/g, '&quot;') : ''}">
+          </label>
+          <label>Tanggal
+            <input type="date" name="post_date" required value="${item ? item.post_date : todayISO()}">
+          </label>
+          <label>Tag
+            <input type="text" name="tag" list="berita-tag-list" value="${item ? item.tag.replace(/"/g, '&quot;') : 'Pengumuman'}">
+            <datalist id="berita-tag-list">
+              <option value="Pengumuman"><option value="Kegiatan"><option value="Info Keuangan"><option value="Ajakan">
+            </datalist>
+          </label>
+          <label>Foto Kegiatan (opsional)
+            <input type="file" name="image_file" id="berita-image-file" accept="image/*">
+          </label>
+        </div>
+        <div id="berita-image-preview" style="margin:4px 0 10px;">
+          ${item && item.image ? `<img src="${item.image}" style="width:120px;height:90px;object-fit:cover;border-radius:8px;display:block;">` : ''}
+        </div>
+        ${item && item.image ? `<label style="display:flex; align-items:center; gap:6px; font-size:13px; margin-bottom:10px;"><input type="checkbox" id="berita-remove-image" style="width:auto;"> Hapus foto ini</label>` : ''}
+        <label>Isi Berita
+          <textarea name="content" rows="5" required>${item ? item.content : ''}</textarea>
+        </label>
+        <div class="modal-actions">
+          <button type="button" id="berita-cancel">Batal</button>
+          <button type="submit" class="btn-primary">Simpan</button>
+        </div>
+      </form>
+    </div>
+  `;
+  document.body.appendChild(backdrop);
+  backdrop.querySelector('#berita-cancel').onclick = () => backdrop.remove();
+  backdrop.addEventListener('click', (e) => { if (e.target === backdrop) backdrop.remove(); });
+
+  let newImageData = null;
+  const fileInput = backdrop.querySelector('#berita-image-file');
+  fileInput.onchange = async () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    newImageData = await compressImageFile(file);
+    backdrop.querySelector('#berita-image-preview').innerHTML =
+      `<img src="${newImageData}" style="width:120px;height:90px;object-fit:cover;border-radius:8px;display:block;">`;
+  };
+
+  backdrop.querySelector('#berita-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const body = { title: fd.get('title'), post_date: fd.get('post_date'), tag: fd.get('tag') || 'Pengumuman', content: fd.get('content') };
+    const removeCb = backdrop.querySelector('#berita-remove-image');
+    if (newImageData) body.image = newImageData;
+    else if (removeCb && removeCb.checked) body.image = '';
+    try {
+      if (isEdit) {
+        await api('/api/berita/' + item.id, { method: 'PUT', body });
+        toast('Berita diperbarui');
+      } else {
+        await api('/api/berita', { method: 'POST', body });
+        toast('Berita ditambahkan');
+      }
+      backdrop.remove();
+      renderBerita();
+    } catch (err) { toast(err.message, true); }
+  };
 }
 
 // ---------- Kelola User ----------

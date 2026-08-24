@@ -82,6 +82,15 @@ const SCHEMA_STATEMENTS = [
     password_hash TEXT NOT NULL,
     created_at TEXT DEFAULT (datetime('now'))
   )`,
+  `CREATE TABLE IF NOT EXISTS berita (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    tag TEXT NOT NULL DEFAULT 'Pengumuman',
+    content TEXT NOT NULL,
+    image TEXT,
+    post_date TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now'))
+  )`,
 ];
 
 async function migrate() {

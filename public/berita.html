@@ -35,46 +35,41 @@
 </div>
 
 <main class="site-main">
-  <div class="grid grid-2" style="grid-template-columns: 1fr; gap: 16px; max-width: 760px; margin: 0 auto;">
-
-    <div class="info-card">
-      <div class="tag-pill">Pengumuman</div>
-      <h3>Selamat Datang di Situs Resmi Masjid Al-Ghufron</h3>
-      <p style="color:var(--muted); font-size:11.5px; margin-bottom:8px;">24 Agustus 2026</p>
-      <p>
-        Situs resmi Masjid Al-Ghufron PNI Blok G RW 035 kini hadir untuk memudahkan jamaah
-        mengakses jadwal sholat, informasi kegiatan, berita, galeri, dan laporan keuangan masjid
-        secara transparan.
-      </p>
-    </div>
-
-    <div class="info-card">
-      <div class="tag-pill">Info Keuangan</div>
-      <h3>Laporan Keuangan Dapat Dipantau Langsung</h3>
-      <p style="color:var(--muted); font-size:11.5px; margin-bottom:8px;">24 Agustus 2026</p>
-      <p>
-        Seluruh transaksi kas operasional dan dana pembangunan masjid kini dapat dipantau
-        langsung oleh jamaah melalui halaman <a href="/transparansi.html" style="color:var(--green-700); font-weight:600;">Transparansi Keuangan</a>,
-        diperbarui otomatis setiap ada transaksi baru.
-      </p>
-    </div>
-
-    <div class="info-card">
-      <div class="tag-pill">Ajakan</div>
-      <h3>Mari Berinfaq dan Bersedekah</h3>
-      <p style="color:var(--muted); font-size:11.5px; margin-bottom:8px;">24 Agustus 2026</p>
-      <p>
-        Pengurus DKM mengajak seluruh jamaah dan warga untuk turut berinfaq dan bersedekah demi
-        keberlangsungan operasional masjid dan kelanjutan pembangunan fasilitas masjid.
-      </p>
-    </div>
-
-    <p style="text-align:center; font-size:12.5px; color:var(--muted); margin-top:8px;">
-      <em>Artikel di atas masih contoh — silakan diganti dengan berita/pengumuman yang sebenarnya oleh pengurus DKM.</em>
-    </p>
-
+  <div id="berita-list" class="grid grid-2" style="grid-template-columns: 1fr; gap: 16px; max-width: 760px; margin: 0 auto;">
+    <div class="empty-state">Memuat berita...</div>
   </div>
 </main>
+
+<script>
+(async function loadBerita() {
+  const wrap = document.getElementById('berita-list');
+  const bulan = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+  const fmtTgl = (d) => {
+    if (!d) return '';
+    const [y, m, day] = d.split('-');
+    return `${Number(day)} ${bulan[Number(m) - 1]} ${y}`;
+  };
+  try {
+    const res = await fetch('/api/public/berita');
+    const list = await res.json();
+    if (!Array.isArray(list) || !list.length) {
+      wrap.innerHTML = '<p style="text-align:center; color:var(--muted);">Belum ada berita atau pengumuman saat ini.</p>';
+      return;
+    }
+    wrap.innerHTML = list.map((b) => `
+      <div class="info-card">
+        ${b.image ? `<img src="${b.image}" alt="${(b.title || '').replace(/"/g,'&quot;')}" style="width:100%; max-height:320px; object-fit:cover; border-radius:var(--radius); margin-bottom:12px; display:block;">` : ''}
+        <div class="tag-pill">${b.tag || 'Pengumuman'}</div>
+        <h3>${b.title}</h3>
+        <p style="color:var(--muted); font-size:11.5px; margin-bottom:8px;">${fmtTgl(b.post_date)}</p>
+        <p style="white-space:pre-line;">${b.content}</p>
+      </div>
+    `).join('');
+  } catch (err) {
+    wrap.innerHTML = '<p style="text-align:center; color:var(--muted);">Gagal memuat berita.</p>';
+  }
+})();
+</script>
 
 <footer class="site-footer">
   <div class="site-footer-inner">

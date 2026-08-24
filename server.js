@@ -27,14 +27,21 @@ function sendJson(res, status, data) {
   res.end(body);
 }
 
-function readBody(req) {
+function readBody(req, maxBytes = 8 * 1024 * 1024) {
   return new Promise((resolve, reject) => {
-    let chunks = '';
-    req.on('data', (c) => (chunks += c));
+    let chunks = [];
+    let size = 0;
+    let tooLarge = false;
+    req.on('data', (c) => {
+      size += c.length;
+      if (size > maxBytes) { tooLarge = true; return; }
+      chunks.push(c);
+    });
     req.on('end', () => {
-      if (!chunks) return resolve({});
+      if (tooLarge) return reject(new Error('Ukuran data terlalu besar (maks 8MB)'));
+      if (!size) return resolve({});
       try {
-        resolve(JSON.parse(chunks));
+        resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')));
       } catch (e) {
         reject(e);
       }
@@ -730,6 +737,45 @@ route('GET', '/api/public/summary', async (req, res) => {
   sendJson(res, 200, await buildPublicSummary());
 });
 
+// ---------- Berita & Kegiatan (admin & bendahara kelola, publik baca) ----------
+
+route('GET', '/api/berita', async (req, res) => {
+  sendJson(res, 200, await db.all('SELECT * FROM berita ORDER BY post_date DESC, id DESC'));
+});
+
+route('POST', '/api/berita', async (req, res) => {
+  const body = await readBody(req);
+  if (!body.title || !body.content || !body.post_date) {
+    return sendJson(res, 400, { error: 'Judul, isi, dan tanggal wajib diisi' });
+  }
+  const info = await db.run(`
+    INSERT INTO berita (title, tag, content, image, post_date) VALUES (?, ?, ?, ?, ?)
+  `, [body.title, body.tag || 'Pengumuman', body.content, body.image || null, body.post_date]);
+  sendJson(res, 201, { id: info.lastInsertRowid });
+});
+
+route('PUT', '/api/berita/:id', async (req, res, params) => {
+  const body = await readBody(req);
+  if (!body.title || !body.content || !body.post_date) {
+    return sendJson(res, 400, { error: 'Judul, isi, dan tanggal wajib diisi' });
+  }
+  const existing = await db.get('SELECT image FROM berita WHERE id = ?', [Number(params.id)]);
+  const image = body.image !== undefined ? body.image : (existing ? existing.image : null);
+  await db.run(`
+    UPDATE berita SET title = ?, tag = ?, content = ?, image = ?, post_date = ? WHERE id = ?
+  `, [body.title, body.tag || 'Pengumuman', body.content, image || null, body.post_date, Number(params.id)]);
+  sendJson(res, 200, { ok: true });
+});
+
+route('DELETE', '/api/berita/:id', async (req, res, params) => {
+  await db.run('DELETE FROM berita WHERE id = ?', [Number(params.id)]);
+  sendJson(res, 200, { ok: true });
+});
+
+route('GET', '/api/public/berita', async (req, res) => {
+  sendJson(res, 200, await db.all('SELECT * FROM berita ORDER BY post_date DESC, id DESC LIMIT 20'));
+});
+
 // ---------- Users (admin only) ----------
 
 route('GET', '/api/users', async (req, res) => {
@@ -802,7 +848,7 @@ function serveStatic(req, res, pathname) {
   });
 }
 
-const PUBLIC_AUTH_ROUTES = new Set(['/api/auth/login', '/api/auth/logout', '/api/auth/me', '/api/public/summary']);
+const PUBLIC_AUTH_ROUTES = new Set(['/api/auth/login', '/api/auth/logout', '/api/auth/me', '/api/public/summary', '/api/public/berita']);
 
 const server = http.createServer(async (req, res) => {
   try {
