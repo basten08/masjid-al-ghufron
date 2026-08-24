@@ -214,7 +214,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--gold-400); 
   align-items: center;
   justify-content: center;
   background:
-    linear-gradient(135deg, rgba(11, 61, 46, 0.75), rgba(22, 98, 69, 0.7)),
+    linear-gradient(135deg, rgba(11, 61, 46, 0.32), rgba(22, 98, 69, 0.28)),
     url('/masjid-bg.jpg') center center / cover no-repeat;
   padding: 16px;
 }
