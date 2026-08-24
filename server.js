@@ -441,18 +441,21 @@ function fmtISODate(d) {
 }
 
 function getWeekRange(now) {
-  const dayOfWeek = now.getDay(); // 0=Minggu, 1=Senin, ... 6=Sabtu
-  const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-  const weekStartDate = new Date(now);
-  weekStartDate.setDate(now.getDate() + diffToMonday);
-  const weekEndDate = new Date(weekStartDate);
-  weekEndDate.setDate(weekStartDate.getDate() + 6);
+  // Rolling 7 hari terakhir: hari ini mundur 7 hari (inklusif kedua ujung).
+  // Misal hari ini 24 Agustus -> rentang 17-24 Agustus.
+  const weekEndDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const weekStartDate = new Date(weekEndDate);
+  weekStartDate.setDate(weekEndDate.getDate() - 7);
   return {
     weekStartDate,
     weekEndDate,
     weekStart: fmtISODate(weekStartDate),
     weekEnd: fmtISODate(weekEndDate),
   };
+}
+
+function fmtLabelDate(d, includeYear) {
+  return `${d.getDate()} ${MONTH_LABELS[d.getMonth()]}${includeYear ? ' ' + d.getFullYear() : ''}`;
 }
 
 async function getWeekTotals(now) {
@@ -463,10 +466,11 @@ async function getWeekTotals(now) {
       SUM(CASE WHEN type = 'pengeluaran' THEN amount ELSE 0 END) AS keluar
     FROM transactions WHERE date >= ? AND date <= ?
   `, [weekStart, weekEnd]);
+  const sameYear = weekStartDate.getFullYear() === weekEndDate.getFullYear();
   return {
     weekMasuk: row.masuk || 0,
     weekKeluar: row.keluar || 0,
-    weekLabel: `${weekStartDate.getDate()} - ${weekEndDate.getDate()} ${MONTH_LABELS[weekEndDate.getMonth()]} ${weekEndDate.getFullYear()}`,
+    weekLabel: `${fmtLabelDate(weekStartDate, !sameYear)} - ${fmtLabelDate(weekEndDate, true)}`,
   };
 }
 
