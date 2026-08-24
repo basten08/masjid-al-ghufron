@@ -3,63 +3,157 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Keuangan Masjid Al-Ghufron</title>
+<title>Masjid Al-Ghufron PNI Blok G RW 035 - Desa Muktiwari, Cibitung, Bekasi</title>
+<meta name="description" content="Situs resmi Masjid Al-Ghufron PNI Blok G RW 035, Desa Muktiwari, Kecamatan Cibitung, Kabupaten Bekasi, Jawa Barat. Jadwal sholat, kegiatan, berita, dan transparansi keuangan masjid.">
 <link rel="icon" href="/favicon.jpg" type="image/jpeg">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-<div class="app">
-  <div id="login-screen" class="login-screen hidden">
-    <div class="login-card">
-      <div class="login-brand">
-        <span class="brand-icon">☾</span>
-        <div>
-          <h1>Masjid Al-Ghufron PNI Blok G</h1>
-          <p>Aplikasi Kas &amp; Keuangan</p>
-        </div>
-      </div>
-      <form id="login-form">
-        <label>Username
-          <input type="text" name="username" autocomplete="username" required autofocus>
-        </label>
-        <label>Password
-          <input type="password" name="password" autocomplete="current-password" required>
-        </label>
-        <div id="login-error" class="login-error hidden"></div>
-        <button type="submit" class="btn-primary" style="width:100%; padding:10px;">Masuk</button>
-      </form>
-      <p style="text-align:center; margin-top:16px; margin-bottom:0;">
-        <a href="/transparansi.html" style="font-size:12.5px; color:var(--muted);"> Lihat Laporan Keuangan &rarr;</a>
+
+<header class="site-header">
+  <div class="site-header-inner">
+    <a href="/" class="site-logo">
+      <span class="brand-icon">☾</span>
+      <span><strong>Masjid Al-Ghufron</strong><small>PNI Blok G &middot; RW 035</small></span>
+    </a>
+    <button class="nav-toggle" id="nav-toggle" aria-label="Buka menu">&#9776;</button>
+    <nav class="site-nav" id="site-nav">
+      <a href="/" class="active">Beranda</a>
+      <a href="/profil.html">Profil</a>
+      <a href="/jadwal-sholat.html">Jadwal Sholat</a>
+      <a href="/kegiatan.html">Kegiatan</a>
+      <a href="/berita.html">Berita</a>
+      <a href="/galeri.html">Galeri</a>
+      <a href="/kontak.html">Kontak</a>
+      <a href="/transparansi.html" class="nav-cta">Transparansi</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero">
+  <h1>Masjid Al-Ghufron</h1>
+  <p class="hero-sub">
+    PNI Blok G RW 035 &middot; Desa Muktiwari, Kecamatan Cibitung<br>
+    Kabupaten Bekasi, Jawa Barat
+  </p>
+  <div class="hero-actions">
+    <a href="/jadwal-sholat.html" class="btn-primary" style="padding:10px 20px; text-decoration:none; display:inline-block;">Jadwal Sholat</a>
+    <a href="/kegiatan.html" class="btn-gold" style="padding:10px 20px; text-decoration:none; display:inline-block;">Lihat Kegiatan</a>
+  </div>
+</section>
+
+<main class="site-main">
+
+  <div class="two-col" style="margin-bottom:32px;">
+    <div class="card">
+      <span class="tag-pill">Sambutan</span>
+      <h2 class="section-title">Assalamu'alaikum, Selamat Datang</h2>
+      <p style="font-size:13.5px; line-height:1.7; color:var(--text);">
+        Masjid Al-Ghufron hadir sebagai pusat ibadah dan kegiatan keagamaan bagi warga
+        PNI Blok G RW 035, Desa Muktiwari, Kecamatan Cibitung, Kabupaten Bekasi. Kami mengajak
+        seluruh jamaah dan warga sekitar untuk turut memakmurkan masjid ini melalui sholat berjamaah,
+        kajian rutin, dan berbagai kegiatan sosial kemasyarakatan.
       </p>
+      <p style="font-size:13.5px; line-height:1.7; color:var(--text);">
+        Pengelolaan keuangan masjid kami kelola secara terbuka — silakan lihat langsung
+        laporan pemasukan dan pengeluaran di halaman <a href="/transparansi.html" style="color:var(--green-700); font-weight:600;">Transparansi Keuangan</a>.
+      </p>
+    </div>
+    <div class="card">
+      <h2 class="section-title">Jadwal Sholat Hari Ini</h2>
+      <div id="prayer-widget">
+        <div class="empty-state">Memuat jadwal sholat...</div>
+      </div>
     </div>
   </div>
 
-  <div id="app-shell" class="hidden">
-    <header class="topbar">
-      <div class="topbar-top">
-        <div class="brand">
-          <span class="brand-icon">☾</span>
-          <div>
-            <h1>Masjid Al-Ghufron PNIC Blok G (RW 035)</h1>
-            <p>Aplikasi Kas &amp; Keuangan</p>
-          </div>
-        </div>
-        <span id="user-info" class="user-info"></span>
+  <div class="section">
+    <h2 class="section-title">Kegiatan Terdekat</h2>
+    <div class="grid grid-4">
+      <div class="info-card">
+        <div class="tag-pill">Rutin &middot; Jumat</div>
+        <h3>Kajian Ba'da Maghrib</h3>
+        <p>Kajian rutin bersama ustadz setempat, terbuka untuk seluruh jamaah dan warga.</p>
       </div>
-      <div class="topbar-bottom">
-        <nav class="tabs" id="tabs"></nav>
-        <div class="user-actions">
-          <button class="btn-sm" id="btn-logout">Keluar</button>
-        </div>
+      <div class="info-card">
+        <div class="tag-pill">Rutin &middot; Minggu</div>
+        <h3>TPA / TPQ Anak-Anak</h3>
+        <p>Pembelajaran membaca Al-Qur'an untuk anak-anak warga sekitar masjid.</p>
       </div>
-    </header>
-
-    <main id="content"></main>
+      <div class="info-card">
+        <div class="tag-pill">Bulanan</div>
+        <h3>Santunan Yatim &amp; Dhuafa</h3>
+        <p>Kegiatan sosial rutin bulanan yang didanai dari infaq dan sedekah jamaah.</p>
+      </div>
+    </div>
+    <p style="text-align:center; margin-top:16px;">
+      <a href="/kegiatan.html" style="font-size:13px; color:var(--green-700); font-weight:600;">Lihat semua kegiatan &rarr;</a>
+    </p>
   </div>
 
-  <div id="toast" class="toast"></div>
-</div>
+  <div class="section">
+    <h2 class="section-title">Berita &amp; Pengumuman Terbaru</h2>
+    <div class="grid grid-4">
+      <div class="info-card">
+        <div class="tag-pill">Pengumuman</div>
+        <h3>Selamat Datang di Situs Baru</h3>
+        <p>Situs resmi Masjid Al-Ghufron kini hadir untuk memudahkan jamaah mengakses informasi kegiatan dan laporan keuangan.</p>
+      </div>
+      <div class="info-card">
+        <div class="tag-pill">Info</div>
+        <h3>Laporan Keuangan Terbuka</h3>
+        <p>Seluruh transaksi kas operasional dan dana pembangunan dapat dipantau langsung secara real-time oleh jamaah.</p>
+      </div>
+      <div class="info-card">
+        <div class="tag-pill">Info</div>
+        <h3>Ajakan Berinfaq</h3>
+        <p>Mari bersama memakmurkan masjid melalui infaq, sedekah, dan donasi dana pembangunan.</p>
+      </div>
+    </div>
+    <p style="text-align:center; margin-top:16px;">
+      <a href="/berita.html" style="font-size:13px; color:var(--green-700); font-weight:600;">Lihat semua berita &rarr;</a>
+    </p>
+  </div>
 
-<script src="/app.js"></script>
+  <div class="card" style="text-align:center; background:linear-gradient(135deg, var(--green-900), var(--green-700)); border:none;">
+    <h2 style="color:white; margin:0 0 8px; font-size:19px;">Transparansi Keuangan Masjid</h2>
+    <p style="color:rgba(255,255,255,0.85); font-size:13.5px; max-width:480px; margin:0 auto 18px;">
+      Pantau langsung saldo kas operasional dan dana pembangunan masjid — diperbarui otomatis.
+    </p>
+    <a href="/transparansi.html" class="btn-gold" style="padding:10px 22px; text-decoration:none; display:inline-block;">Lihat Laporan Keuangan</a>
+  </div>
+
+</main>
+
+<footer class="site-footer">
+  <div class="site-footer-inner">
+    <div>
+      <h3>Masjid Al-Ghufron</h3>
+      <p style="margin:0; font-size:13px; line-height:1.7; color:rgba(255,255,255,0.82);">
+        PNI Blok G, RW 035<br>
+        Desa Muktiwari, Kec. Cibitung<br>
+        Kab. Bekasi, Jawa Barat
+      </p>
+    </div>
+    <div>
+      <h3>Tautan</h3>
+      <a href="/profil.html">Profil Masjid</a>
+      <a href="/jadwal-sholat.html">Jadwal Sholat</a>
+      <a href="/kegiatan.html">Kegiatan</a>
+      <a href="/transparansi.html">Transparansi Keuangan</a>
+    </div>
+    <div>
+      <h3>Lainnya</h3>
+      <a href="/berita.html">Berita &amp; Pengumuman</a>
+      <a href="/galeri.html">Galeri</a>
+      <a href="/kontak.html">Kontak Kami</a>
+      <a href="/admin.html" class="admin-link">Login Admin &rarr;</a>
+    </div>
+  </div>
+  <div class="copyright">&copy; 2026 Masjid Al-Ghufron PNI Blok G RW 035, Desa Muktiwari, Cibitung, Bekasi. Dikelola oleh Pengurus DKM.</div>
+</footer>
+
+<script src="/site.js"></script>
+<script>loadPrayerTimes('prayer-widget', { compact: true });</script>
 </body>
 </html>

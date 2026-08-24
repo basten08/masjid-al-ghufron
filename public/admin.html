@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login Admin - Keuangan Masjid Al-Ghufron</title>
+<link rel="icon" href="/favicon.jpg" type="image/jpeg">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="app">
+  <div id="login-screen" class="login-screen hidden">
+    <div class="login-card">
+      <div class="login-brand">
+        <span class="brand-icon">☾</span>
+        <div>
+          <h1>Masjid Al-Ghufron PNI Blok G</h1>
+          <p>Aplikasi Kas &amp; Keuangan</p>
+        </div>
+      </div>
+      <form id="login-form">
+        <label>Username
+          <input type="text" name="username" autocomplete="username" required autofocus>
+        </label>
+        <label>Password
+          <input type="password" name="password" autocomplete="current-password" required>
+        </label>
+        <div id="login-error" class="login-error hidden"></div>
+        <button type="submit" class="btn-primary" style="width:100%; padding:10px;">Masuk</button>
+      </form>
+      <p style="text-align:center; margin-top:16px; margin-bottom:0; display:flex; justify-content:center; gap:14px;">
+        <a href="/" style="font-size:12.5px; color:var(--muted);">&larr; Beranda</a>
+        <a href="/transparansi.html" style="font-size:12.5px; color:var(--muted);">Laporan Keuangan &rarr;</a>
+      </p>
+    </div>
+  </div>
+
+  <div id="app-shell" class="hidden">
+    <header class="topbar">
+      <div class="topbar-top">
+        <div class="brand">
+          <span class="brand-icon">☾</span>
+          <div>
+            <h1>Masjid Al-Ghufron PNIC Blok G (RW 035)</h1>
+            <p>Aplikasi Kas &amp; Keuangan</p>
+          </div>
+        </div>
+        <span id="user-info" class="user-info"></span>
+      </div>
+      <div class="topbar-bottom">
+        <nav class="tabs" id="tabs"></nav>
+        <div class="user-actions">
+          <button class="btn-sm" id="btn-logout">Keluar</button>
+        </div>
+      </div>
+    </header>
+
+    <main id="content"></main>
+  </div>
+
+  <div id="toast" class="toast"></div>
+</div>
+
+<script src="/app.js"></script>
+</body>
+</html>
