@@ -213,7 +213,9 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--gold-400); 
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--green-900), var(--green-700));
+  background:
+    linear-gradient(135deg, rgba(11, 61, 46, 0.75), rgba(22, 98, 69, 0.7)),
+    url('/masjid-bg.jpg') center center / cover no-repeat;
   padding: 16px;
 }
 .login-card {
