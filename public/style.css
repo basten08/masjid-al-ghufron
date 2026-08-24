@@ -346,6 +346,18 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--gold-400); 
 }
 .avatar-placeholder img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
 
+.org-role-title {
+  font-weight: 700; color: var(--green-900); font-size: 12.5px;
+  margin-bottom: 12px; text-align: center; letter-spacing: 0.3px; text-transform: uppercase;
+}
+.avatar-sm {
+  width: 30px; height: 30px; border-radius: 50%; overflow: hidden;
+  flex-shrink: 0; background: #fafcfa; border: 1px solid var(--border);
+}
+.avatar-sm img { width: 100%; height: 100%; object-fit: cover; }
+.person-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 13px; color: var(--text); text-align: left; }
+.person-row:last-child { margin-bottom: 0; }
+
 .prayer-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 4px; border-bottom: 1px solid var(--border); }
 .prayer-row:last-child { border-bottom: none; }
 .prayer-row .prayer-name { font-size: 13.5px; color: var(--text); font-weight: 500; }
