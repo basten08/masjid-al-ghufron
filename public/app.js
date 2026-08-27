@@ -740,6 +740,7 @@ function openAccModal(acc) {
 state.laporanMode = state.laporanMode || 'periode';
 state.laporanGroup = state.laporanGroup || 'operasional';
 state.laporanAccount = state.laporanAccount || '';
+state.laporanType = state.laporanType || '';
 
 async function renderLaporan() {
   const content = document.getElementById('content');
@@ -781,6 +782,11 @@ async function renderLaporanPeriode() {
       <div class="toolbar">
         <input type="date" id="r-start" value="${defStart}">
         <input type="date" id="r-end" value="${defEnd}">
+        <select id="r-type" title="Filter Jenis">
+          <option value="">Semua Jenis</option>
+          <option value="pemasukan" ${state.laporanType === 'pemasukan' ? 'selected' : ''}>Pemasukan</option>
+          <option value="pengeluaran" ${state.laporanType === 'pengeluaran' ? 'selected' : ''}>Pengeluaran</option>
+        </select>
         <select id="r-account" title="Filter Kas/Rekening">
           <option value="">Semua Kas/Rekening</option>
           ${accOptions}
@@ -798,9 +804,10 @@ async function renderLaporanPeriode() {
   async function generate() {
     const start = document.getElementById('r-start').value;
     const end = document.getElementById('r-end').value;
+    state.laporanType = document.getElementById('r-type').value;
     state.laporanAccount = document.getElementById('r-account').value;
     const selectedAcc = state.accounts.find((a) => a.id == state.laporanAccount);
-    const qs = buildQuery({ start, end, group: state.laporanGroup, account_id: state.laporanAccount });
+    const qs = buildQuery({ start, end, group: state.laporanGroup, type: state.laporanType, account_id: state.laporanAccount });
     const rows = await api('/api/transactions?' + qs);
     const totalMasuk = rows.filter((r) => r.type === 'pemasukan').reduce((s, r) => s + r.amount, 0);
     const totalKeluar = rows.filter((r) => r.type === 'pengeluaran').reduce((s, r) => s + r.amount, 0);
