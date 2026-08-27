@@ -739,6 +739,7 @@ function openAccModal(acc) {
 
 state.laporanMode = state.laporanMode || 'periode';
 state.laporanGroup = state.laporanGroup || 'operasional';
+state.laporanAccount = state.laporanAccount || '';
 
 async function renderLaporan() {
   const content = document.getElementById('content');
@@ -772,12 +773,18 @@ async function renderLaporanPeriode() {
 
   const groupLabel = state.laporanGroup === 'pembangunan' ? 'Dana Pembangunan' : 'Kas Operasional';
 
+  const accOptions = state.accounts.map((a) => `<option value="${a.id}" ${state.laporanAccount == a.id ? 'selected' : ''}>${a.name}</option>`).join('');
+
   content.innerHTML = `
     <div class="card section">
       <h2 class="section-title">Laporan Periode &mdash; ${groupLabel}</h2>
       <div class="toolbar">
         <input type="date" id="r-start" value="${defStart}">
         <input type="date" id="r-end" value="${defEnd}">
+        <select id="r-account" title="Filter Kas/Rekening">
+          <option value="">Semua Kas/Rekening</option>
+          ${accOptions}
+        </select>
         <button id="r-generate" class="btn-primary">Tampilkan Laporan</button>
         <div class="spacer"></div>
         <button id="r-export-excel">⬇ Export Excel</button>
@@ -791,14 +798,16 @@ async function renderLaporanPeriode() {
   async function generate() {
     const start = document.getElementById('r-start').value;
     const end = document.getElementById('r-end').value;
-    const qs = buildQuery({ start, end, group: state.laporanGroup });
+    state.laporanAccount = document.getElementById('r-account').value;
+    const selectedAcc = state.accounts.find((a) => a.id == state.laporanAccount);
+    const qs = buildQuery({ start, end, group: state.laporanGroup, account_id: state.laporanAccount });
     const rows = await api('/api/transactions?' + qs);
     const totalMasuk = rows.filter((r) => r.type === 'pemasukan').reduce((s, r) => s + r.amount, 0);
     const totalKeluar = rows.filter((r) => r.type === 'pengeluaran').reduce((s, r) => s + r.amount, 0);
 
     document.getElementById('r-summary').innerHTML = `
       <div class="grid grid-4" style="margin-bottom:16px">
-        <div class="card stat-card"><div class="label">Periode</div><div class="value" style="font-size:15px">${fmtDate(start)} - ${fmtDate(end)}</div></div>
+        <div class="card stat-card"><div class="label">Periode</div><div class="value" style="font-size:15px">${fmtDate(start)} - ${fmtDate(end)}${selectedAcc ? '<br><span style="font-size:11px;font-weight:400;opacity:0.7">' + selectedAcc.name + '</span>' : ''}</div></div>
         <div class="card stat-card"><div class="label">Total Pemasukan</div><div class="value">${fmtMoney(totalMasuk)}</div></div>
         <div class="card stat-card"><div class="label">Total Pengeluaran</div><div class="value negative">${fmtMoney(totalKeluar)}</div></div>
         <div class="card stat-card"><div class="label">Selisih</div><div class="value ${totalMasuk - totalKeluar < 0 ? 'negative' : ''}">${fmtMoney(totalMasuk - totalKeluar)}</div></div>
@@ -826,7 +835,8 @@ async function renderLaporanPeriode() {
       window.location.href = '/api/export/excel?' + qs;
     };
     document.getElementById('r-print').onclick = () => {
-      printReport(start, end, rows, totalMasuk, totalKeluar, groupLabel);
+      const label = selectedAcc ? `${groupLabel} — ${selectedAcc.name}` : groupLabel;
+      printReport(start, end, rows, totalMasuk, totalKeluar, label);
     };
   }
 
