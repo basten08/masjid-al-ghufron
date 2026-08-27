@@ -270,9 +270,57 @@ input:focus, select:focus, textarea:focus {
 
 .site-header {
   background: linear-gradient(135deg, var(--green-900) 0%, var(--green-700) 100%);
-  position: sticky; top: 0; z-index: 30;
+  position: fixed; top: 0; left: 0; right: 0; z-index: 30;
   box-shadow: 0 2px 12px rgba(0,0,0,0.18);
 }
+
+.nav-donasi {
+  background: var(--gold-500); color: white;
+  border: none; cursor: pointer; font-family: inherit;
+  font-size: 13.5px; font-weight: 600;
+  padding: 8px 14px; border-radius: 8px;
+  white-space: nowrap; display: flex; align-items: center; gap: 5px;
+  box-shadow: 0 2px 8px rgba(201,162,39,0.4);
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.nav-donasi:hover { background: #b28e1f; box-shadow: 0 4px 12px rgba(201,162,39,0.45); }
+@media (max-width: 860px) {
+  .nav-donasi { padding: 12px 14px; width: 100%; justify-content: flex-start; border-radius: 8px; }
+}
+
+.qris-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.52);
+  z-index: 200;
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+  opacity: 0; pointer-events: none; transition: opacity 0.2s;
+}
+.qris-overlay.open { opacity: 1; pointer-events: auto; }
+.qris-modal {
+  background: white; border-radius: 20px;
+  padding: 30px 24px 22px; max-width: 400px; width: 100%;
+  position: relative; text-align: center;
+  transform: scale(0.95); transition: transform 0.2s;
+  max-height: 90vh; overflow-y: auto;
+}
+.qris-overlay.open .qris-modal { transform: scale(1); }
+.qris-close {
+  position: absolute; top: 14px; right: 16px;
+  background: none; border: none; font-size: 22px;
+  cursor: pointer; color: #888; line-height: 1; padding: 4px;
+}
+.qris-close:hover { color: #222; }
+.qris-modal h2 { margin: 0 0 6px; font-size: 20px; color: var(--green-900); }
+.qris-modal .qris-sub { margin: 0 0 18px; font-size: 13px; color: var(--muted); }
+.qris-modal img { width: 100%; max-width: 320px; border-radius: 12px; border: 1px solid var(--border); display: block; margin: 0 auto 20px; }
+.qris-modal .qris-no-img { font-size: 13px; color: var(--muted); margin-bottom: 20px; padding: 32px 16px; border: 2px dashed var(--border); border-radius: 12px; }
+.qris-btn-close {
+  background: var(--green-700); color: white;
+  border: none; border-radius: 999px;
+  padding: 12px 48px; font-size: 14px; font-weight: 600;
+  cursor: pointer; letter-spacing: 0.5px; transition: background 0.2s;
+}
+.qris-btn-close:hover { background: var(--green-900); }
 .site-header-inner {
   max-width: 1120px; margin: 0 auto; padding: 13px 20px;
   display: flex; align-items: center; justify-content: space-between; gap: 16px;

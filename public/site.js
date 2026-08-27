@@ -4,6 +4,50 @@ document.querySelectorAll('.nav-toggle').forEach((btn) => {
   });
 });
 
+// Header fixed: tambahkan spacer agar konten tidak tertutup header
+(function () {
+  const hdr = document.querySelector('.site-header');
+  if (!hdr) return;
+  const spacer = document.createElement('div');
+  spacer.id = 'site-header-spacer';
+  hdr.parentNode.insertBefore(spacer, hdr.nextSibling);
+  const sync = () => { spacer.style.height = hdr.offsetHeight + 'px'; };
+  sync();
+  window.addEventListener('resize', sync);
+})();
+
+// Tombol Donasi + modal QRIS
+(function () {
+  const nav = document.querySelector('.site-nav');
+  if (!nav) return;
+
+  // Tombol
+  const btn = document.createElement('button');
+  btn.className = 'nav-donasi';
+  btn.innerHTML = '&#9829; Donasi';
+  btn.onclick = () => document.getElementById('qris-overlay').classList.add('open');
+  nav.appendChild(btn);
+
+  // Modal
+  const overlay = document.createElement('div');
+  overlay.id = 'qris-overlay';
+  overlay.className = 'qris-overlay';
+  overlay.innerHTML = `
+    <div class="qris-modal">
+      <button class="qris-close" onclick="document.getElementById('qris-overlay').classList.remove('open')">&times;</button>
+      <h2>&#9829; Infaq &amp; Sedekah</h2>
+      <p class="qris-sub">Scan QRIS di bawah ini untuk berdonasi</p>
+      <img src="/qris-masjid.jpg" alt="QRIS Masjid Al-Ghufron"
+           onerror="this.outerHTML='<div class=qris-no-img>File QRIS belum tersedia.<br>Simpan foto QRIS masjid sebagai<br><strong>public/qris-masjid.jpg</strong></div>'">
+      <br>
+      <button class="qris-btn-close" onclick="document.getElementById('qris-overlay').classList.remove('open')">TUTUP</button>
+    </div>`;
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) overlay.classList.remove('open');
+  });
+  document.body.appendChild(overlay);
+})();
+
 const PRAYER_LOCATION = 'Cibitung, Bekasi, Jawa Barat, Indonesia';
 const MYQURAN_KOTA_ID = '1203'; // KAB. BEKASI (mencakup Kec. Cibitung)
 const PRAYER_ORDER_MYQURAN = [
