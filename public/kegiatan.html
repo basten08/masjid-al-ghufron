@@ -72,27 +72,33 @@
 
   <div class="section">
     <h2 class="section-title">Agenda Terdekat</h2>
-    <div class="grid grid-4">
-      <div class="info-card">
-        <div class="tag-pill">Selesai</div>
-        <h3>[Maulid Nabi Muhammad SAW]</h3>
-        <p>[Selasa, 25 Agustus 2026 (Malam Rabu Ba'da Isya)] &middot; [Masjid Al-Ghufron Blok G RW 035]</p>
-      </div>
-      <div class="info-card">
-        <div class="tag-pill">Segera</div>
-        <h3>[Rutinan Yasin & Tahlil]</h3>
-        <p>[27 Agustus 2026] &middot; [Masjid Al Ghufron Blok G RW 035/Acara akan dimulai ba'da isya dipimpin oleh Ust. Aji Saputro]</p>
-      </div>
-      <div class="info-card">
-        <div class="tag-pill">Segera</div>
-        <h3>[Spesial di Bulan Maulid]</h3>
-        <p>[Minggu Malam Senin] &middot; [Masjid Al Ghufron Blok G RW 035/Pembacaan Maulid diba' al-barzanji dilanjut mahalul qiyam]</p>
-      </div>
+    <div id="agenda-list" class="grid grid-4">
+      <p style="color:var(--muted);font-size:13px;">Memuat agenda...</p>
     </div>
-    <!-- <p style="font-size:12.5px; color:var(--muted); margin-top:14px; text-align:center;">
-      <em>Belum ada agenda khusus yang diinput — kartu di atas contoh format, silakan diisi pengurus DKM.</em>
-    </p> -->
   </div>
+
+<script>
+(async function loadAgenda() {
+  const wrap = document.getElementById('agenda-list');
+  try {
+    const list = await fetch('/api/public/agenda').then((r) => r.json());
+    if (!Array.isArray(list) || !list.length) {
+      wrap.innerHTML = '<p style="color:var(--muted);font-size:13px;">Belum ada agenda saat ini.</p>';
+      return;
+    }
+    wrap.innerHTML = list.map((a) => `
+      <div class="info-card" style="display:flex;flex-direction:column;">
+        ${a.image ? `<img src="${a.image}" alt="${(a.title||'').replace(/"/g,'&quot;')}" style="width:100%;height:170px;object-fit:cover;border-radius:var(--radius);margin-bottom:12px;display:block;">` : ''}
+        <div class="tag-pill">${a.tag}</div>
+        <h3>${a.title}</h3>
+        <p style="color:var(--muted);font-size:12.5px;margin-bottom:4px;">${a.date_label}</p>
+        ${a.location ? `<p style="font-size:13px;">${a.location}</p>` : ''}
+      </div>`).join('');
+  } catch (err) {
+    wrap.innerHTML = '<p style="color:var(--muted);font-size:13px;">Gagal memuat agenda.</p>';
+  }
+})();
+</script>
 
 </main>
 

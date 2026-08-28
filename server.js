@@ -776,6 +776,43 @@ route('GET', '/api/public/berita', async (req, res) => {
   sendJson(res, 200, await db.all('SELECT * FROM berita ORDER BY post_date DESC, id DESC LIMIT 20'));
 });
 
+// ---------- Agenda ----------
+
+route('GET', '/api/agenda', async (req, res) => {
+  sendJson(res, 200, await db.all('SELECT * FROM agenda ORDER BY sort_order ASC, id DESC'));
+});
+
+route('POST', '/api/agenda', async (req, res) => {
+  const body = await readBody(req);
+  if (!body.title || !body.date_label) return sendJson(res, 400, { error: 'Judul dan tanggal wajib diisi' });
+  const info = await db.run(
+    'INSERT INTO agenda (title, tag, date_label, location, image, sort_order) VALUES (?, ?, ?, ?, ?, ?)',
+    [body.title, body.tag || 'Segera', body.date_label, body.location || null, body.image || null, body.sort_order || 0]
+  );
+  sendJson(res, 201, { id: info.lastInsertRowid });
+});
+
+route('PUT', '/api/agenda/:id', async (req, res, params) => {
+  const body = await readBody(req);
+  if (!body.title || !body.date_label) return sendJson(res, 400, { error: 'Judul dan tanggal wajib diisi' });
+  const existing = await db.get('SELECT image FROM agenda WHERE id = ?', [Number(params.id)]);
+  const image = body.image !== undefined ? body.image : (existing ? existing.image : null);
+  await db.run(
+    'UPDATE agenda SET title = ?, tag = ?, date_label = ?, location = ?, image = ?, sort_order = ? WHERE id = ?',
+    [body.title, body.tag || 'Segera', body.date_label, body.location || null, image || null, body.sort_order || 0, Number(params.id)]
+  );
+  sendJson(res, 200, { ok: true });
+});
+
+route('DELETE', '/api/agenda/:id', async (req, res, params) => {
+  await db.run('DELETE FROM agenda WHERE id = ?', [Number(params.id)]);
+  sendJson(res, 200, { ok: true });
+});
+
+route('GET', '/api/public/agenda', async (req, res) => {
+  sendJson(res, 200, await db.all('SELECT * FROM agenda ORDER BY sort_order ASC, id DESC'));
+});
+
 // ---------- Users (admin only) ----------
 
 route('GET', '/api/users', async (req, res) => {
@@ -848,7 +885,7 @@ function serveStatic(req, res, pathname) {
   });
 }
 
-const PUBLIC_AUTH_ROUTES = new Set(['/api/auth/login', '/api/auth/logout', '/api/auth/me', '/api/public/summary', '/api/public/berita']);
+const PUBLIC_AUTH_ROUTES = new Set(['/api/auth/login', '/api/auth/logout', '/api/auth/me', '/api/public/summary', '/api/public/berita', '/api/public/agenda']);
 
 const server = http.createServer(async (req, res) => {
   try {

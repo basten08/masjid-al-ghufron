@@ -14,6 +14,7 @@ const TABS = [
   { key: 'kas', label: 'Kas / Rekening', roles: ['admin'] },
   { key: 'laporan', label: 'Laporan', roles: ['admin', 'bendahara'] },
   { key: 'berita', label: 'Berita', roles: ['admin', 'bendahara'] },
+  { key: 'agenda', label: 'Agenda', roles: ['admin', 'bendahara'] },
   { key: 'user', label: 'Kelola User', roles: ['admin'] },
 ];
 
@@ -156,6 +157,7 @@ async function render() {
     else if (state.tab === 'kas') await renderKas();
     else if (state.tab === 'laporan') await renderLaporan();
     else if (state.tab === 'berita') await renderBerita();
+    else if (state.tab === 'agenda') await renderAgenda();
     else if (state.tab === 'user') await renderUsers();
   } catch (err) {
     content.innerHTML = `<div class="empty-state">Gagal memuat: ${err.message}</div>`;
@@ -1165,6 +1167,139 @@ function openBeritaModal(item) {
       }
       backdrop.remove();
       renderBerita();
+    } catch (err) { toast(err.message, true); }
+  };
+}
+
+// ---------- Agenda ----------
+
+async function renderAgenda() {
+  const list = await api('/api/agenda');
+  const content = document.getElementById('content');
+
+  const rows = list.length ? list.map((a) => `
+    <tr>
+      <td style="width:64px">${a.image ? `<img src="${a.image}" style="width:56px;height:56px;object-fit:cover;border-radius:8px;display:block;">` : ''}</td>
+      <td><span class="badge ${a.tag === 'Selesai' ? 'out' : 'in'}">${a.tag}</span></td>
+      <td>${a.title}</td>
+      <td>${a.date_label}</td>
+      <td>${a.location || ''}</td>
+      <td class="actions-cell">
+        <button class="btn-sm" data-edit-agenda="${a.id}">Edit</button>
+        <button class="btn-sm btn-danger" data-del-agenda="${a.id}">Hapus</button>
+      </td>
+    </tr>`).join('') : '<tr><td colspan="6" class="empty-state">Belum ada agenda</td></tr>';
+
+  content.innerHTML = `
+    <div class="card">
+      <div class="toolbar">
+        <h2 class="section-title" style="margin:0">Agenda Terdekat</h2>
+        <p style="font-size:12.5px; color:var(--muted); margin:2px 0 0;">Tampil di halaman publik Kegiatan. Seret/atur urutan lewat kolom No.</p>
+        <div class="spacer"></div>
+        <button class="btn-primary" id="btn-new-agenda">+ Tambah Agenda</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Poster</th><th>Status</th><th>Judul</th><th>Tanggal</th><th>Lokasi</th><th>Aksi</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('btn-new-agenda').onclick = () => openAgendaModal(null, renderAgenda);
+  content.querySelectorAll('[data-edit-agenda]').forEach((btn) => {
+    btn.onclick = () => {
+      const a = list.find((x) => x.id === Number(btn.dataset.editAgenda));
+      openAgendaModal(a, renderAgenda);
+    };
+  });
+  content.querySelectorAll('[data-del-agenda]').forEach((btn) => {
+    btn.onclick = async () => {
+      if (!confirm('Hapus agenda ini?')) return;
+      try {
+        await api('/api/agenda/' + btn.dataset.delAgenda, { method: 'DELETE' });
+        toast('Agenda dihapus');
+        renderAgenda();
+      } catch (err) { toast(err.message, true); }
+    };
+  });
+}
+
+function openAgendaModal(item, onSaved) {
+  const isEdit = !!item;
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.innerHTML = `
+    <div class="modal">
+      <h3>${isEdit ? 'Edit' : 'Tambah'} Agenda</h3>
+      <form id="agenda-form">
+        <div class="form-grid cols-2">
+          <label>Judul
+            <input type="text" name="title" required value="${item ? item.title.replace(/"/g, '&quot;') : ''}">
+          </label>
+          <label>Tanggal / Waktu
+            <input type="text" name="date_label" placeholder="cth: 5 September 2026, Ba'da Isya" required value="${item ? item.date_label.replace(/"/g, '&quot;') : ''}">
+          </label>
+          <label>Status
+            <select name="tag">
+              <option value="Segera" ${(!item || item.tag === 'Segera') ? 'selected' : ''}>Segera</option>
+              <option value="Mendatang" ${item && item.tag === 'Mendatang' ? 'selected' : ''}>Mendatang</option>
+              <option value="Selesai" ${item && item.tag === 'Selesai' ? 'selected' : ''}>Selesai</option>
+            </select>
+          </label>
+          <label>Lokasi (opsional)
+            <input type="text" name="location" value="${item && item.location ? item.location.replace(/"/g, '&quot;') : ''}">
+          </label>
+          <label>Urutan tampil
+            <input type="number" name="sort_order" value="${item ? item.sort_order : 0}" min="0">
+          </label>
+          <label>Poster / Gambar (opsional)
+            <input type="file" name="image_file" id="agenda-image-file" accept="image/*">
+          </label>
+        </div>
+        <div id="agenda-image-preview" style="margin:4px 0 10px;">
+          ${item && item.image ? `<img src="${item.image}" style="width:120px;height:90px;object-fit:cover;border-radius:8px;display:block;">` : ''}
+        </div>
+        ${item && item.image ? `<label style="display:flex;align-items:center;gap:6px;font-size:13px;margin-bottom:10px;"><input type="checkbox" id="agenda-remove-image" style="width:auto;"> Hapus poster ini</label>` : ''}
+        <div class="modal-actions">
+          <button type="button" id="agenda-cancel">Batal</button>
+          <button type="submit" class="btn-primary">Simpan</button>
+        </div>
+      </form>
+    </div>
+  `;
+  document.body.appendChild(backdrop);
+  backdrop.querySelector('#agenda-cancel').onclick = () => backdrop.remove();
+  backdrop.addEventListener('click', (e) => { if (e.target === backdrop) backdrop.remove(); });
+
+  let newImageData = null;
+  const fileInput = backdrop.querySelector('#agenda-image-file');
+  fileInput.onchange = async () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    newImageData = await compressImageFile(file);
+    backdrop.querySelector('#agenda-image-preview').innerHTML =
+      `<img src="${newImageData}" style="width:120px;height:90px;object-fit:cover;border-radius:8px;display:block;">`;
+  };
+
+  backdrop.querySelector('#agenda-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const body = { title: fd.get('title'), date_label: fd.get('date_label'), tag: fd.get('tag'), location: fd.get('location'), sort_order: Number(fd.get('sort_order')) || 0 };
+    const removeCb = backdrop.querySelector('#agenda-remove-image');
+    if (newImageData) body.image = newImageData;
+    else if (removeCb && removeCb.checked) body.image = '';
+    try {
+      if (isEdit) {
+        await api('/api/agenda/' + item.id, { method: 'PUT', body });
+        toast('Agenda diperbarui');
+      } else {
+        await api('/api/agenda', { method: 'POST', body });
+        toast('Agenda ditambahkan');
+      }
+      backdrop.remove();
+      if (onSaved) onSaved();
     } catch (err) { toast(err.message, true); }
   };
 }

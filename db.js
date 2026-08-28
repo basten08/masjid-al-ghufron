@@ -91,6 +91,16 @@ const SCHEMA_STATEMENTS = [
     post_date TEXT NOT NULL,
     created_at TEXT DEFAULT (datetime('now'))
   )`,
+  `CREATE TABLE IF NOT EXISTS agenda (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    tag TEXT NOT NULL DEFAULT 'Segera',
+    date_label TEXT NOT NULL,
+    location TEXT,
+    image TEXT,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now'))
+  )`,
 ];
 
 async function migrate() {
