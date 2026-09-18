@@ -123,7 +123,50 @@
     <a href="/transparansi.html" class="btn-gold" style="padding:10px 22px; text-decoration:none; display:inline-block;">Lihat Laporan Keuangan</a>
   </div>
 
+  <div class="section">
+    <h2 class="section-title">Statistik Pengunjung Website</h2>
+    <div class="grid" style="grid-template-columns: repeat(4, minmax(0, 1fr)); max-width:800px; margin:0 auto;">
+      <div class="info-card" style="text-align:center; padding:20px 12px;">
+        <p style="font-size:11px; color:var(--muted); margin:0 0 6px; text-transform:uppercase; letter-spacing:.6px;">Hari Ini</p>
+        <p id="vs-today" style="font-size:30px; font-weight:700; color:var(--green-700); margin:0; line-height:1;">—</p>
+        <p style="font-size:11px; color:var(--muted); margin:4px 0 0;">pengunjung</p>
+      </div>
+      <div class="info-card" style="text-align:center; padding:20px 12px;">
+        <p style="font-size:11px; color:var(--muted); margin:0 0 6px; text-transform:uppercase; letter-spacing:.6px;">7 Hari Terakhir</p>
+        <p id="vs-week" style="font-size:30px; font-weight:700; color:var(--green-700); margin:0; line-height:1;">—</p>
+        <p style="font-size:11px; color:var(--muted); margin:4px 0 0;">pengunjung</p>
+      </div>
+      <div class="info-card" style="text-align:center; padding:20px 12px;">
+        <p style="font-size:11px; color:var(--muted); margin:0 0 6px; text-transform:uppercase; letter-spacing:.6px;">Bulan Ini</p>
+        <p id="vs-month" style="font-size:30px; font-weight:700; color:var(--green-700); margin:0; line-height:1;">—</p>
+        <p style="font-size:11px; color:var(--muted); margin:4px 0 0;">pengunjung</p>
+      </div>
+      <div class="info-card" style="text-align:center; padding:20px 12px;">
+        <p style="font-size:11px; color:var(--muted); margin:0 0 6px; text-transform:uppercase; letter-spacing:.6px;">Total</p>
+        <p id="vs-total" style="font-size:30px; font-weight:700; color:var(--green-700); margin:0; line-height:1;">—</p>
+        <p style="font-size:11px; color:var(--muted); margin:4px 0 0;">pengunjung</p>
+      </div>
+    </div>
+  </div>
+
 </main>
+
+<script>
+(async function () {
+  if (!sessionStorage.getItem('mg_visited')) {
+    sessionStorage.setItem('mg_visited', '1');
+    fetch('/api/public/visit', { method: 'POST' }).catch(() => {});
+  }
+  try {
+    const s = await fetch('/api/public/stats/visitors').then((r) => r.json());
+    const fmt = (n) => Number(n || 0).toLocaleString('id-ID');
+    document.getElementById('vs-today').textContent = fmt(s.today);
+    document.getElementById('vs-week').textContent = fmt(s.week);
+    document.getElementById('vs-month').textContent = fmt(s.month);
+    document.getElementById('vs-total').textContent = fmt(s.total);
+  } catch (e) {}
+})();
+</script>
 
 <footer class="site-footer">
   <div class="site-footer-inner">

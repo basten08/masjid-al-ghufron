@@ -813,6 +813,46 @@ route('GET', '/api/public/agenda', async (req, res) => {
   sendJson(res, 200, await db.all('SELECT * FROM agenda ORDER BY sort_order ASC, id DESC'));
 });
 
+// ---------- Visitor Stats ----------
+
+function jakartaDateStr() {
+  const now = new Date();
+  const jakarta = new Date(now.getTime() + 7 * 3600 * 1000);
+  return jakarta.toISOString().slice(0, 10);
+}
+
+route('POST', '/api/public/visit', async (req, res) => {
+  const today = jakartaDateStr();
+  await db.run(
+    `INSERT INTO visitor_stats (visit_date, count) VALUES (?, 1)
+     ON CONFLICT(visit_date) DO UPDATE SET count = count + 1`,
+    [today]
+  );
+  sendJson(res, 200, { ok: true });
+});
+
+route('GET', '/api/public/stats/visitors', async (req, res) => {
+  const today = jakartaDateStr();
+  const d = new Date(new Date().getTime() + 7 * 3600 * 1000);
+  const yyyy = d.toISOString().slice(0, 4);
+  const mm = d.toISOString().slice(5, 7);
+  const weekAgo = new Date(d.getTime() - 6 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+
+  const [todayRow, weekRow, monthRow, totalRow] = await Promise.all([
+    db.get('SELECT count FROM visitor_stats WHERE visit_date = ?', [today]),
+    db.get('SELECT SUM(count) as total FROM visitor_stats WHERE visit_date >= ?', [weekAgo]),
+    db.get('SELECT SUM(count) as total FROM visitor_stats WHERE visit_date LIKE ?', [`${yyyy}-${mm}-%`]),
+    db.get('SELECT SUM(count) as total FROM visitor_stats'),
+  ]);
+
+  sendJson(res, 200, {
+    today: todayRow ? todayRow.count : 0,
+    week: weekRow ? (weekRow.total || 0) : 0,
+    month: monthRow ? (monthRow.total || 0) : 0,
+    total: totalRow ? (totalRow.total || 0) : 0,
+  });
+});
+
 // ---------- Users (admin only) ----------
 
 route('GET', '/api/users', async (req, res) => {
@@ -885,7 +925,7 @@ function serveStatic(req, res, pathname) {
   });
 }
 
-const PUBLIC_AUTH_ROUTES = new Set(['/api/auth/login', '/api/auth/logout', '/api/auth/me', '/api/public/summary', '/api/public/berita', '/api/public/agenda']);
+const PUBLIC_AUTH_ROUTES = new Set(['/api/auth/login', '/api/auth/logout', '/api/auth/me', '/api/public/summary', '/api/public/berita', '/api/public/agenda', '/api/public/visit', '/api/public/stats/visitors']);
 
 const server = http.createServer(async (req, res) => {
   try {
