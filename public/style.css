@@ -97,6 +97,23 @@ h2.section-title::before {
   .grid-2 { grid-template-columns: minmax(0, 1fr); }
 }
 
+/* Visitor stats */
+.visitor-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  max-width: 860px;
+  margin: 0 auto;
+}
+.visitor-stat-card { text-align: center; padding: 24px 12px; }
+.vs-label { font-size: 11px; color: var(--muted); margin: 0 0 8px; text-transform: uppercase; letter-spacing: .6px; }
+.vs-number { font-size: 32px; font-weight: 700; color: var(--green-700); margin: 0; line-height: 1; }
+.vs-sub { font-size: 11px; color: var(--muted); margin: 6px 0 0; }
+@media (max-width: 600px) {
+  .visitor-stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .vs-number { font-size: 26px; }
+}
+
 .card {
   background: var(--card);
   border: 1px solid var(--border);
